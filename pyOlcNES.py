@@ -30,7 +30,8 @@
 from typing import *
 from enum import IntEnum, Enum, auto
 from dataclasses import dataclass, field
-from numpy import uint8 as uint8_t, uint16 as uint16_t, uint32 as uint32_t
+from random import randint
+from numpy import uint8 as uint8_t, uint16 as uint16_t, uint32 as uint32_t, int16 as int16_t
 
 DEBUG = 0
 VERBOSE_DEBUG = 0
@@ -141,13 +142,13 @@ class Py6502:
         self.bus.cpu = self
 
     def read(self, addr: uint16_t, bReadOnly: Optional[bool] = False) -> uint8_t:
-        val = self.bus.read(addr, bReadOnly)
+        val = self.bus.cpuRead(addr, bReadOnly)
         if VERBOSE_DEBUG:
-            print("cpu.read(%x) ==> %x" % (addr, val))
+            print("cpu.cpuRead(%x) ==> %x" % (addr, val))
         return val
 
     def write(self, addr: uint16_t, data: uint8_t) -> None:
-        self.bus.write(addr, data)
+        self.bus.cpuWrite(addr, data)
 
     ###############################################################################
     # EXTERNAL INPUTS
@@ -1390,23 +1391,281 @@ class Py6502:
 
         return mapLines
 
+@dataclass
+class Pixel:
+    r: uint8_t
+    g: uint8_t
+    b: uint8_t
+
+class Sprite:
+    width: int
+    height: int
+    pColData: List[Pixel]
+
+    def __init__(self, width: int, height: int):
+        self.pColData = [None] * (width * height)
+
+    def setPixel(self, x: int, y: int, p: Pixel) -> bool:
+        if (x >= 0 and x < self.width and y >= 0 and y < self.height):
+            pColData[y * self.width + x] = p;
+            return True
+        else:
+            return False
+
+class Cartridge:
+    pass
+
+class Py2C02:
+    cart: Cartridge
+    tblName: List[List[uint8_t]]
+    tblPattern: List[List[uint8_t]]
+    tblPalette: List[uint8_t]
+    palScreen: List[Pixel]
+    sprScreen: Sprite
+    sprNameTable: List[Sprite]
+    sprPatternTable: List[Sprite]
+    frame_complete: bool
+    scanline: int16_t
+    cycle: int16_t
+
+    def __init__(self):
+        self.tblName = [[uint8_t(0)] * 1024] * 2
+        self.tblPattern = [[uint8_t(0)] * 4096] * 2
+        self.tblPalette = [uint8_t(0)] * 32
+        palScreen = [uint8_t(0)] * 0x40
+        palScreen[0x00] = Pixel(84, 84, 84)
+        palScreen[0x01] = Pixel(0, 30, 116)
+        palScreen[0x02] = Pixel(8, 16, 144)
+        palScreen[0x03] = Pixel(48, 0, 136)
+        palScreen[0x04] = Pixel(68, 0, 100)
+        palScreen[0x05] = Pixel(92, 0, 48)
+        palScreen[0x06] = Pixel(84, 4, 0)
+        palScreen[0x07] = Pixel(60, 24, 0)
+        palScreen[0x08] = Pixel(32, 42, 0)
+        palScreen[0x09] = Pixel(8, 58, 0)
+        palScreen[0x0A] = Pixel(0, 64, 0)
+        palScreen[0x0B] = Pixel(0, 60, 0)
+        palScreen[0x0C] = Pixel(0, 50, 60)
+        palScreen[0x0D] = Pixel(0, 0, 0)
+        palScreen[0x0E] = Pixel(0, 0, 0)
+        palScreen[0x0F] = Pixel(0, 0, 0)
+
+        palScreen[0x10] = Pixel(152, 150, 152)
+        palScreen[0x11] = Pixel(8, 76, 196)
+        palScreen[0x12] = Pixel(48, 50, 236)
+        palScreen[0x13] = Pixel(92, 30, 228)
+        palScreen[0x14] = Pixel(136, 20, 176)
+        palScreen[0x15] = Pixel(160, 20, 100)
+        palScreen[0x16] = Pixel(152, 34, 32)
+        palScreen[0x17] = Pixel(120, 60, 0)
+        palScreen[0x18] = Pixel(84, 90, 0)
+        palScreen[0x19] = Pixel(40, 114, 0)
+        palScreen[0x1A] = Pixel(8, 124, 0)
+        palScreen[0x1B] = Pixel(0, 118, 40)
+        palScreen[0x1C] = Pixel(0, 102, 120)
+        palScreen[0x1D] = Pixel(0, 0, 0)
+        palScreen[0x1E] = Pixel(0, 0, 0)
+        palScreen[0x1F] = Pixel(0, 0, 0)
+
+        palScreen[0x20] = Pixel(236, 238, 236)
+        palScreen[0x21] = Pixel(76, 154, 236)
+        palScreen[0x22] = Pixel(120, 124, 236)
+        palScreen[0x23] = Pixel(176, 98, 236)
+        palScreen[0x24] = Pixel(228, 84, 236)
+        palScreen[0x25] = Pixel(236, 88, 180)
+        palScreen[0x26] = Pixel(236, 106, 100)
+        palScreen[0x27] = Pixel(212, 136, 32)
+        palScreen[0x28] = Pixel(160, 170, 0)
+        palScreen[0x29] = Pixel(116, 196, 0)
+        palScreen[0x2A] = Pixel(76, 208, 32)
+        palScreen[0x2B] = Pixel(56, 204, 108)
+        palScreen[0x2C] = Pixel(56, 180, 204)
+        palScreen[0x2D] = Pixel(60, 60, 60)
+        palScreen[0x2E] = Pixel(0, 0, 0)
+        palScreen[0x2F] = Pixel(0, 0, 0)
+
+        palScreen[0x30] = Pixel(236, 238, 236)
+        palScreen[0x31] = Pixel(168, 204, 236)
+        palScreen[0x32] = Pixel(188, 188, 236)
+        palScreen[0x33] = Pixel(212, 178, 236)
+        palScreen[0x34] = Pixel(236, 174, 236)
+        palScreen[0x35] = Pixel(236, 174, 212)
+        palScreen[0x36] = Pixel(236, 180, 176)
+        palScreen[0x37] = Pixel(228, 196, 144)
+        palScreen[0x38] = Pixel(204, 210, 120)
+        palScreen[0x39] = Pixel(180, 222, 120)
+        palScreen[0x3A] = Pixel(168, 226, 144)
+        palScreen[0x3B] = Pixel(152, 226, 180)
+        palScreen[0x3C] = Pixel(160, 214, 228)
+        palScreen[0x3D] = Pixel(160, 162, 160)
+        palScreen[0x3E] = Pixel(0, 0, 0)
+        palScreen[0x3F] = Pixel(0, 0, 0)
+
+        self.palScreen = palScreen
+        self.sprScreen = Sprite(256, 240)
+        self.sprNameTable = [Sprite(256, 240), Sprite(256, 240)]
+        self.sprPatternTable = [Sprite(128, 128), Sprite(128, 128)]
+
+        self.frame_complete = False
+        self.scanline = 0
+        self.cycle = 0
+
+    def getScreen(self) -> Sprite:
+        return self.sprScreen
+
+    def getNameTable(self, i: uint8_t) -> Sprite:
+        return self.sprNameTable[i]
+
+    def getPatternTable(self, i: uint8_t) -> Sprite:
+        return self.sprPatternTable[i]
+
+    def connectCartridge(self, cart: Cartridge) -> None:
+        self.cart = cart
+
+    def clock(self) -> None:
+        # Fake some noise for now
+        self.sprScreen.SetPixel(self.cycle - 1, self.scanline, self.palScreen[0x3F if (randint() % 2) else 0x30])
+
+        # Advance renderer - it never stops, it's relentless
+        self.cycle+=int16_t(1)
+        if (self.cycle >= 341):
+            self.cycle = int16_t(0)
+            self.scanline+=int16_t(1)
+            if (self.scanline >= 261):
+                self.scanline = int16_t(-1)
+                self.frame_complete = True
+
+    def cpuRead(self, addr: uint16_t, rdonly: Optional[bool] = False) -> uint8_t:
+        data: uint8_t = uint8_t(0x00)
+
+        match (addr):
+            case 0x0000: # Control
+                pass
+            case 0x0001: # Mask
+                pass
+            case 0x0002: # Status
+                pass
+            case 0x0003: # OAM Address
+                pass
+            case 0x0004: # OAM Data
+                pass
+            case 0x0005: # Scroll
+                pass
+            case 0x0006: # PPU Address
+                pass
+            case 0x0007: # PPU Data
+                pass
+
+        return data
+
+    def cpuWrite(self, addr: uint16_t, data: uint8_t) -> None:
+        match (addr):
+            case 0x0000: # Control
+                pass
+            case 0x0001: # Mask
+                pass
+            case 0x0002: # Status
+                pass
+            case 0x0003: # OAM Address
+                pass
+            case 0x0004: # OAM Data
+                pass
+            case 0x0005: # Scroll
+                pass
+            case 0x0006: # PPU Address
+                pass
+            case 0x0007: # PPU Data
+                pass
+
+    def ppuRead(self, addr: uint16_t, rdonly: Optional[bool] = False) -> uint8_t:
+        data: uint8_t = uint8_t(0x00)
+        addr &= uint16_t(0x3FFF)
+
+        if (self.cart.ppuRead(addr, data)):
+            pass
+
+        return data
+
+    def ppuWrite(self, addr: uint16_t, data: uint8_t) -> None:
+        addr &= uint16_t(0x3FFF)
+
+        if (self.cart.ppuWrite(addr, data)):
+            pass
+
 class Bus:
     cpu: Py6502
-    ram: List[uint8_t]
+    ppu: Py2C02
+    cart: Cartridge
+    cpuRam: List[uint8_t]
+
+    nSystemClockCounter: uint32_t
     def __init__(self):
-        self.ram = [uint8_t(0)] * (64 * 1024)
+        self.Ram = [uint8_t(0)] * (2 * 1024)
 
-    def read(self, addr: uint16_t, bReadOnly: Optional[bool] = False) -> uint8_t:
-        if (addr >= 0x0000 and addr < 0xFFFF):
-            val = uint8_t(self.ram[addr])
-            #print("bus.read(%x) = %x" % (addr, val))
-            return uint8_t(val)
-        return uint8_t(0)
+    def cpuWrite(self, addr: uint16_t, data: uint8_t) -> None:
+        if (self.cart.cpuWrite(addr, data)):
+            # The cartridge "sees all" and has the facility to veto
+            # the propagation of the bus transaction if it requires.
+            # This allows the cartridge to map any address to some
+            # other data, including the facility to divert transactions
+            # with other physical devices. The NES does not do this
+            # but I figured it might be quite a flexible way of adding
+            # "custom" hardware to the NES in the future!
+            pass
+        elif (addr >= 0x0000 and addr < 0x1FFF):
+            # System RAM Address Range. The range covers 8KB, though
+            # there is only 2KB available. That 2KB is "mirrored"
+            # through this address range. Using bitwise AND to mask
+            # the bottom 11 bits is the same as addr % 2048.
+            self.cpuRam[addr & 0x07FF] = data
+        elif (addr >= 0x2000 and addr < 0x3FFF):
+            # PPU Address range. The PPU only has 8 primary registers
+            # and these are repeated throughout this range. We can
+            # use bitwise AND operation to mask the bottom 3 bits,
+            # which is the equivalent of addr % 8.
+            self.ppu.cpuWrite(addr & 0x0007, data)
 
+    def cpuRead(self, addr: uint16_t, bReadOnly: Optional[bool] = False) -> uint8_t:
+        data: uint8_t = uint8_t(0)
+        if (self.cart.cpuRead(addr, data)):
+            # Cartridge Address Range
+            pass
+        elif (addr >= 0x0000 and addr < 0x1FFF):
+            # System RAM Address Range, mirrored every 2048
+            data = uint8_t(self.ram[addr & 0x07FF])
+        elif (addr >= 0x2000 and addr < 0x3FFF):
+            # PPU Address range, mirrored every 8
+            data = self.ppu.cpuRead(addr & 0x0007, bReadOnly)
+        return data
 
-    def write(self, addr: uint16_t, data: uint8_t) -> None:
-        if (addr >= 0x0000 and addr < 0xFFFF):
-            self.ram[uint16_t(addr)] = uint8_t(data)
+    def insertCartridge(self) -> None:
+        # Connects cartridge to both Main Bus and CPU Bus
+        self.cart = cartridge
+        self.ppu.ConnectCartridge(cartridge)
+
+    def reset(self) -> None:
+        self.cpu.reset()
+        self.nSystemClockCounter = uint32_t(0)
+
+    def clock(self) -> None:
+        # Clocking. The heart and soul of an emulator. The running
+        # frequency is controlled by whatever calls this function.
+        # So here we "divide" the clock as necessary and call
+        # the peripheral devices clock() function at the correct
+        # times.
+
+        # The fastest clock frequency the digital system cares
+        # about is equivalent to the PPU clock. So the PPU is clocked
+        # each time this function is called.
+        self.ppu.clock()
+
+        # The CPU runs 3 times slower than the PPU so we only call its
+        # clock() function every 3 times this function is called. We
+        # have a global counter to keep track of this.
+        if (self.nSystemClockCounter % 3 == 0):
+            cpu.clock()
+
+        self.nSystemClockCounter+=uint32_t(1)
 
 if __name__ == "__main__":
     main()
