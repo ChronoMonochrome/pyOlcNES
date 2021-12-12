@@ -1756,7 +1756,7 @@ class Py2C02:
 class Bus:
     cpu: Py6502
     ppu: Py2C02
-    cart: Cartridge
+    cart: Cartridge = None
     cpuRam: List[uint8_t]
 
     nSystemClockCounter: uint32_t
