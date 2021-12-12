@@ -39,15 +39,6 @@ from numpy import uint8 as uint8_t, uint16 as uint16_t, uint32 as uint32_t, int1
 DEBUG = 0
 VERBOSE_DEBUG = 0
 
-def main():
-    py6502 = Py6502()
-
-    print(type(py6502.bus))
-    print(type(py6502.bus.cpu))
-    #py6502.setFlag(FLAGS6502.C, True)
-    #print(py6502.getFlag(FLAGS6502.C))
-    print(py6502.lookup[0])
-
 class FLAGS6502(IntEnum):
     C = (1 << 0) # Carry bit
     Z = (1 << 1) # Zero
@@ -1876,6 +1867,3 @@ class Bus:
             cpu.clock()
 
         self.nSystemClockCounter+=uint32_t(1)
-
-if __name__ == "__main__":
-    main()
