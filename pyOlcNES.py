@@ -1393,26 +1393,26 @@ class Mapper(ABC):
         self.nCHRBanks = nCHRBanks
 
     @abstractmethod
-    def cpuMapRead(addr: uint16_t):
+    def cpuMapRead(self, addr: uint16_t):
         pass
 
     @abstractmethod
-    def cpuMapWrite(addr: uint16_t):
+    def cpuMapWrite(self, addr: uint16_t):
         pass
 
     @abstractmethod
-    def ppuMapRead(addr: uint16_t):
+    def ppuMapRead(self, addr: uint16_t):
         pass
 
     @abstractmethod
-    def ppuMapWrite(addr: uint16_t):
+    def ppuMapWrite(self, addr: uint16_t):
         pass
 
 class Mapper_000(Mapper):
     def __init__(self, nPRGBanks, nCHRBanks):
         Mapper.__init__(self, nPRGBanks, nCHRBanks)
 
-    def cpuMapRead(addr: uint16_t) -> Tuple[bool, uint32_t]:
+    def cpuMapRead(self, addr: uint16_t) -> Tuple[bool, uint32_t]:
         # if PRGROM is 16KB
         #     CPU Address Bus          PRG ROM
         #     0x8000 -> 0xBFFF: Map    0x0000 -> 0x3FFF
@@ -1426,14 +1426,14 @@ class Mapper_000(Mapper):
 
         return (False, uint32_t(0))
 
-    def cpuMapWrite(addr: uint16_t) -> Tuple[bool, uint32_t]:
+    def cpuMapWrite(self, addr: uint16_t) -> Tuple[bool, uint32_t]:
         if (addr >= 0x8000 and addr <= 0xFFFF):
             mapped_addr = uint32_t(addr & (0x7FFF if self.nPRGBanks > 1 else 0x3FFF))
             return (True, mapped_addr)
 
         return (False, uint32_t(0))
 
-    def ppuMapRead(addr: uint16_t) -> Tuple[bool, uint32_t]:
+    def ppuMapRead(self, addr: uint16_t) -> Tuple[bool, uint32_t]:
         # There is no mapping required for PPU
         # PPU Address Bus          CHR ROM
         # 0x0000 -> 0x1FFF: Map    0x0000 -> 0x1FFF
@@ -1443,7 +1443,7 @@ class Mapper_000(Mapper):
 
         return (False, uint32_t(0))
 
-    def ppuMapWrite(addr: uint16_t) -> Tuple[bool, uint32_t]:
+    def ppuMapWrite(self, addr: uint16_t) -> Tuple[bool, uint32_t]:
         if (addr >= 0x0000 and addr <= 0x1FFF):
             if (self.nCHRBanks == 0):
                 # Treat as RAM
@@ -1550,38 +1550,38 @@ class Cartridge:
             self.bImageValid = True;
             fd.close()
 
-        def imageValid(self) -> bool:
-            return self.bImageValid
+    def imageValid(self) -> bool:
+        return self.bImageValid
 
-        def cpuRead(addr: uint16_t, data: uint8_t) -> Tuple[bool, bytes]:
-            res, mapped_addr = self.pMapper.cpuMapRead(addr)
-            if (res):
-                return (True, self.vPRGMemory[mapped_addr])
-            else:
-                return (False, bytes())
+    def cpuRead(self, addr: uint16_t, data: uint8_t) -> Tuple[bool, bytes]:
+        res, mapped_addr = self.pMapper.cpuMapRead(addr)
+        if (res):
+            return (True, self.vPRGMemory[mapped_addr])
+        else:
+            return (False, bytes())
 
-        def cpuWrite(addr: uint16_t, data: uint8_t) -> bool:
-            res, mapped_addr = self.pMapper.cpuMapWrite(addr)
-            if (res):
-                self.vPRGMemory[mapped_addr] = data
-                return True
-            else:
-                return False
+    def cpuWrite(self, addr: uint16_t, data: uint8_t) -> bool:
+        res, mapped_addr = self.pMapper.cpuMapWrite(addr)
+        if (res):
+            self.vPRGMemory[mapped_addr] = data
+            return True
+        else:
+            return False
 
-        def ppuRead(addr: uint16_t, data: uint8_t) -> Tuple[bool, bytes]:
-            res, mapped_addr = self.pMapper.ppuMapRead(addr)
-            if (res):
-                return (True, self.vCHRMemory[mapped_addr])
-            else:
-                return (False, bytes())
+    def ppuRead(self, addr: uint16_t, data: uint8_t) -> Tuple[bool, bytes]:
+        res, mapped_addr = self.pMapper.ppuMapRead(addr)
+        if (res):
+            return (True, self.vCHRMemory[mapped_addr])
+        else:
+            return (False, bytes())
 
-        def ppuWrite(addr: uint16_t, data: uint8_t) -> bool:
-            res, mapped_addr = self.pMapper.ppuMapWrite(addr)
-            if (res):
-                self.vCHRMemory[mapped_addr] = data
-                return True
-            else:
-                return False
+    def ppuWrite(self, addr: uint16_t, data: uint8_t) -> bool:
+        res, mapped_addr = self.pMapper.ppuMapWrite(addr)
+        if (res):
+            self.vCHRMemory[mapped_addr] = data
+            return True
+        else:
+            return False
 
 
 class Py2C02:
@@ -1693,7 +1693,7 @@ class Py2C02:
 
     def clock(self) -> None:
         # Fake some noise for now
-        self.sprScreen.SetPixel(self.cycle - 1, self.scanline, self.palScreen[0x3F if (randint() % 2) else 0x30])
+        self.sprScreen.SetPixel(self.cycle - 1, self.scanline, self.palScreen[0x3F if randint(0, 1) else 0x30])
 
         # Advance renderer - it never stops, it's relentless
         self.cycle+=int16_t(1)
@@ -1766,7 +1766,7 @@ class Py2C02:
 class Bus:
     cpu: Py6502
     ppu: Py2C02
-    cart: Optional[Cartridge] = None
+    cart: Cartridge
     cpuRam: List[uint8_t]
 
     nSystemClockCounter: uint32_t
@@ -1820,10 +1820,10 @@ class Bus:
             data = self.ppu.cpuRead(addr & 0x0007, bReadOnly)
         return data
 
-    def insertCartridge(self) -> None:
+    def insertCartridge(self, cartridge: Cartridge) -> None:
         # Connects cartridge to both Main Bus and CPU Bus
         self.cart = cartridge
-        self.ppu.ConnectCartridge(cartridge)
+        self.ppu.connectCartridge(cartridge)
 
     def reset(self) -> None:
         self.cpu.reset()
@@ -1845,6 +1845,6 @@ class Bus:
         # clock() function every 3 times this function is called. We
         # have a global counter to keep track of this.
         if (self.nSystemClockCounter % 3 == 0):
-            cpu.clock()
+            self.cpu.clock()
 
         self.nSystemClockCounter+=uint32_t(1)
