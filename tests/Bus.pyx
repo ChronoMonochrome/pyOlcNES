@@ -17,6 +17,7 @@ cdef class Bus:
 
     def cpuWrite(self, addr: uint16_t, data: uint8_t) -> None:
         res = False
+        cartData = 0
         if self.cart:
             cartData = self.cart.cpuWrite(addr, data)
 
@@ -44,6 +45,7 @@ cdef class Bus:
 
     def cpuRead(self, addr: uint16_t, bReadOnly: Optional[bool] = False) -> uint8_t:
         data: uint8_t = 0
+        cartData = 0
 
         if self.cart:
             cartData = self.cart.cpuRead(addr, data)
