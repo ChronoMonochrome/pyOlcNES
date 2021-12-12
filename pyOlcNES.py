@@ -80,8 +80,6 @@ class Py6502:
     lookup: List[INSTRUCTION]
 
     def __init__(self):
-        self.connectBus(Bus())
-
         self.a = uint8_t(0)
         self.x = uint8_t(0)
         self.y = uint8_t(0)
@@ -1767,12 +1765,15 @@ class Py2C02:
 
 class Bus:
     cpu: Py6502
-    ppu: Optional[Py2C02] = None
+    ppu: Py2C02
     cart: Optional[Cartridge] = None
     cpuRam: List[uint8_t]
 
     nSystemClockCounter: uint32_t
     def __init__(self):
+        self.cpu = Py6502()
+        self.ppu = Py2C02()
+        self.cpu.connectBus(self)
         self.cpuRam = [uint8_t(0)] * (2 * 1024)
 
     def cpuWrite(self, addr: uint16_t, data: uint8_t) -> None:
