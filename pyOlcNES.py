@@ -1314,7 +1314,7 @@ class Py6502:
             sInst: str = "$" + hex(addr)[2:] + ": "
 
             # Read instruction, and get its readable name
-            opcode: uint8_t = self.bus.read(addr, True)
+            opcode: uint8_t = self.bus.cpuRead(addr, True)
             addr+=1
             sInst += self.lookup[opcode].name + " "
 
@@ -1326,19 +1326,19 @@ class Py6502:
             if (self.lookup[opcode].addrmode == self.IMP):
                 sInst += " {IMP}"
             elif (self.lookup[opcode].addrmode == self.IMM):
-                value = self.bus.read(addr, True)
+                value = self.bus.cpuRead(addr, True)
                 if addr >= 0x8000 and addr <=0x8020:
                     print("[dis] addr=%x value=%x" % (addr, value))
 
                 addr+=1
                 sInst += "#$" + hex(value) + " {IMM}"
             elif (self.lookup[opcode].addrmode == self.ZP0):
-                lo = self.bus.read(addr, True)
+                lo = self.bus.cpuRead(addr, True)
                 addr+=1
                 hi = 0x00
                 sInst += "$" + hex(lo) + " {ZP0}"
             elif (self.lookup[opcode].addrmode == self.ZPX):
-                lo = self.bus.read(addr, True)
+                lo = self.bus.cpuRead(addr, True)
                 addr+=1
                 hi = 0x00
                 sInst += "$" + hex(lo) + ", X {ZPX}"
@@ -1348,41 +1348,41 @@ class Py6502:
                 hi = 0x00
                 sInst += "$" + hex(lo) + ", Y {ZPY}"
             elif (self.lookup[opcode].addrmode == self.IZX):
-                lo = self.bus.read(addr, True)
+                lo = self.bus.cpuRead(addr, True)
                 addr+=1
                 hi = 0x00
                 sInst += "($" + hex(lo) + ", X) {IZX}"
             elif (self.lookup[opcode].addrmode == self.IZY):
-                lo = self.bus.read(addr, True)
+                lo = self.bus.cpuRead(addr, True)
                 addr+=1
                 hi = 0x00
                 sInst += "($" + hex(lo) + "), Y {IZY}"
             elif (self.lookup[opcode].addrmode == self.ABS):
-                lo = self.bus.read(addr, True)
+                lo = self.bus.cpuRead(addr, True)
                 addr+=1
-                hi = self.bus.read(addr, True)
+                hi = self.bus.cpuRead(addr, True)
                 addr+=1
                 sInst += "$" + hex((hi << 8) | lo) + " {ABS}"
             elif (self.lookup[opcode].addrmode == self.ABX):
-                lo = self.bus.read(addr, True)
+                lo = self.bus.cpuRead(addr, True)
                 addr+=1
-                hi = self.bus.read(addr, True)
+                hi = self.bus.cpuRead(addr, True)
                 addr+=1
                 sInst += "$" + hex((hi << 8) | lo) + ", X {ABX}"
             elif (self.lookup[opcode].addrmode == self.ABY):
-                lo = self.bus.read(addr, True)
+                lo = self.bus.cpuRead(addr, True)
                 addr+=1
-                hi = self.bus.read(addr, True)
+                hi = self.bus.cpuRead(addr, True)
                 addr+=1
                 sInst += "$" + hex((hi << 8) | lo) + ", Y {ABY}"
             elif (self.lookup[opcode].addrmode == self.IND):
-                lo = self.bus.read(addr, True)
+                lo = self.bus.cpuRead(addr, True)
                 addr+=1
-                hi = self.bus.read(addr, True)
+                hi = self.bus.cpuRead(addr, True)
                 addr+=1
                 sInst += "($" + hex((hi << 8) | lo) + ") {IND}"
             elif (self.lookup[opcode].addrmode == self.REL):
-                value = self.bus.read(addr, True)
+                value = self.bus.cpuRead(addr, True)
                 addr+=1
                 sInst += "$" + hex(value) + " [$" + hex(addr + value) + "] {REL}"
 
@@ -1796,16 +1796,19 @@ class Py2C02:
 
 class Bus:
     cpu: Py6502
-    ppu: Py2C02
-    cart: Cartridge
+    ppu: Optional[Py2C02] = None
+    cart: Optional[Cartridge] = None
     cpuRam: List[uint8_t]
 
     nSystemClockCounter: uint32_t
     def __init__(self):
-        self.Ram = [uint8_t(0)] * (2 * 1024)
+        self.cpuRam = [uint8_t(0)] * (2 * 1024)
 
     def cpuWrite(self, addr: uint16_t, data: uint8_t) -> None:
-        res, cartData = self.cart.cpuWrite(addr, data)
+        res = False
+        if self.cart:
+            res, cartData = self.cart.cpuWrite(addr, data)
+
         if (res):
             # The cartridge "sees all" and has the facility to veto
             # the propagation of the bus transaction if it requires.
@@ -1830,14 +1833,16 @@ class Bus:
 
     def cpuRead(self, addr: uint16_t, bReadOnly: Optional[bool] = False) -> uint8_t:
         data: uint8_t = uint8_t(0)
+        res = False
+        if self.cart:
+            res, cartData = self.cart.cpuRead(addr, data)
 
-        res, cartData = self.cart.cpuRead(addr, data)
         if (res):
             # Cartridge Address Range
             data = cartData
         elif (addr >= 0x0000 and addr < 0x1FFF):
             # System RAM Address Range, mirrored every 2048
-            data = uint8_t(self.ram[addr & 0x07FF])
+            data = uint8_t(self.cpuRam[addr & 0x07FF])
         elif (addr >= 0x2000 and addr < 0x3FFF):
             # PPU Address range, mirrored every 8
             data = self.ppu.cpuRead(addr & 0x0007, bReadOnly)
