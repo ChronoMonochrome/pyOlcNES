@@ -231,6 +231,46 @@ cdef class Py6502:
         # Decrement the number of cycles remaining for this instruction
         self.cycles-=1
 
+    def clock_instruction(self) -> None:
+        cycles = self.cycles
+        while (self.cycles != 0):
+            if (self.cycles == 0):
+                # Read next instruction byte. This 8-bit value is used to index
+                # the translation table to get the relevant information about
+                # how to implement the instruction
+                self.opcode = self.read(self.pc)
+
+                # Always set the unused status flag bit to 1
+                #self.setFlag(FLAGS6502.U, True)
+
+                # Increment program counter, we read the opcode byte
+                self.pc = (self.pc + 1) & 0xffff
+
+                # Get Starting number of cycles
+                self.cycles = lookup[self.opcode].cycles
+
+                # Perform fetch of intermmediate data using the
+                # required addressing mode
+                additional_cycle1: uint8_t = (lookup[self.opcode].addrmode)()
+
+                # Perform operation
+                additional_cycle2: uint8_t = (lookup[self.opcode].operate)()
+
+                # The addressmode and opcode may have altered the number
+                # of cycles this instruction requires before its completed
+                self.cycles += (additional_cycle1 & additional_cycle2)
+
+                # Always set the unused status flag bit to 1
+                #self.setFlag(FLAGS6502.U, True)
+
+            # Increment global clock count - This is actually unused unless logging is enabled
+            # but I've kept it in because its a handy watch variable for debugging
+            self.clock_count+=1
+
+            # Decrement the number of cycles remaining for this instruction
+            self.cycles-=1
+        return cycles
+
     # Convenience functions to access status register
     def getFlag(self, f: FLAGS6502) -> uint8_t:
         return 1 if ((self.status & f) > 0) else 0
