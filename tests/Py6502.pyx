@@ -34,25 +34,28 @@ from typing import *
 from pyOlcNES import FLAGS6502
 from lookup import get_lookup_table
 
+lookup = []
 
-class Py6502:
+cdef class Py6502:
     # CPU Core registers, exposed as public here for ease of access from external
     # examinors. This is all the 6502 has.
-    a: uint8_t      # Accumulator Register
-    x: uint8_t      # X Register
-    y: uint8_t      # Y Register
-    stkp: uint8_t   # Stack Pointer (points to location on bus)
-    pc: uint16_t    # Program Counter
-    status: uint8_t # Status Register
+    cdef public int a         # Accumulator Register
+    cdef public int x         # X Register
+    cdef public int y         # Y Register
+    cdef public int stkp      # Stack Pointer (points to location on bus)
+    cdef public int pc        # Program Counter
+    cdef public int status    # Status Register
 
     # Assisstive variables to facilitate emulation
-    fetched: uint8_t        # Represents the working input value to the ALU
-    temp: uint16_t          # A convenience variable used everywhere
-    addr_abs: uint16_t      # All used memory addresses end up in here
-    addr_rel: uint16_t      # Represents absolute address following a branch
-    opcode: uint8_t         # Is the instruction byte
-    cycles: uint8_t         # Counts how many cycles the instruction has remaining
-    clock_count: uint32_t   # A global accumulation of the number of clocks
+    cdef public int fetched     # Represents the working input value to the ALU
+    cdef public int temp        # A convenience variable used everywhere
+    cdef public int addr_abs    # All used memory addresses end up in here
+    cdef public int addr_rel    # Represents absolute address following a branch
+    cdef public int opcode      # Is the instruction byte
+    cdef public int cycles      # Counts how many cycles the instruction has remaining
+    cdef public int clock_count # A global accumulation of the number of clocks
+	
+    cdef public object bus
 
     def __init__(self):
         self.a = 0
@@ -69,10 +72,8 @@ class Py6502:
         self.cycles = 0
         self.clock_count = 0
         
-        self.lookup = get_lookup_table(self)
-
-        if __debug__:
-            self.logfile = None
+        global lookup
+        lookup = get_lookup_table(self)
 
     def connectBus(self, bus) -> None:
         self.bus = bus
@@ -201,27 +202,27 @@ class Py6502:
             self.opcode = self.read(self.pc)
 
             # Always set the unused status flag bit to 1
-            self.setFlag(FLAGS6502.U, True)
+            #self.setFlag(FLAGS6502.U, True)
 
             # Increment program counter, we read the opcode byte
             self.pc = (self.pc + 1) & 0xffff
 
             # Get Starting number of cycles
-            self.cycles = self.lookup[self.opcode].cycles
+            self.cycles = lookup[self.opcode].cycles
 
             # Perform fetch of intermmediate data using the
             # required addressing mode
-            additional_cycle1: uint8_t = (self.lookup[self.opcode].addrmode)()
+            additional_cycle1: uint8_t = (lookup[self.opcode].addrmode)()
 
             # Perform operation
-            additional_cycle2: uint8_t = (self.lookup[self.opcode].operate)()
+            additional_cycle2: uint8_t = (lookup[self.opcode].operate)()
 
             # The addressmode and opcode may have altered the number
             # of cycles this instruction requires before its completed
             self.cycles += (additional_cycle1 & additional_cycle2)
 
             # Always set the unused status flag bit to 1
-            self.setFlag(FLAGS6502.U, True)
+            #self.setFlag(FLAGS6502.U, True)
 
         # Increment global clock count - This is actually unused unless logging is enabled
         # but I've kept it in because its a handy watch variable for debugging
@@ -591,7 +592,7 @@ class Py6502:
         self.setFlag(FLAGS6502.C, (self.temp & 0xFF00) > 0)
         self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x00)
         self.setFlag(FLAGS6502.N, self.temp & 0x80)
-        if (self.lookup[self.opcode].addrmode == self.IMP):
+        if (lookup[self.opcode].addrmode == self.IMP):
             self.a = uint8_t(self.temp & 0x00FF)
         else:
             self.write(self.addr_abs, uint8_t(self.temp & 0x00FF))
@@ -935,7 +936,7 @@ class Py6502:
         self.temp = self.fetched >> 1
         self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x0000)
         self.setFlag(FLAGS6502.N, self.temp & 0x0080)
-        if (self.lookup[self.opcode].addrmode == self.IMP):
+        if (lookup[self.opcode].addrmode == self.IMP):
             self.a = uint8_t(self.temp & 0x00FF)
         else:
             self.write(self.addr_abs, self.temp & 0x00FF)
@@ -1007,7 +1008,7 @@ class Py6502:
         self.setFlag(FLAGS6502.C, self.temp & 0xFF00)
         self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x0000)
         self.setFlag(FLAGS6502.N, self.temp & 0x0080)
-        if (self.lookup[self.opcode].addrmode == self.IMP):
+        if (lookup[self.opcode].addrmode == self.IMP):
             self.a = self.temp & 0x00FF
         else:
             self.write(self.addr_abs, self.temp & 0x00FF)
@@ -1019,7 +1020,7 @@ class Py6502:
         self.setFlag(FLAGS6502.C, self.fetched & 0x01)
         self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x00)
         self.setFlag(FLAGS6502.N, self.temp & 0x0080)
-        if (self.lookup[self.opcode].addrmode == self.IMP):
+        if (lookup[self.opcode].addrmode == self.IMP):
             self.a = self.temp & 0x00FF
         else:
             self.write(self.addr_abs, self.temp & 0x00FF)
@@ -1165,7 +1166,7 @@ class Py6502:
     # is a variable global to the CPU, and is set by calling this
     # function. It also returns it for convenience.
     def fetch(self) -> uint8_t:
-        if (self.lookup[self.opcode].addrmode != self.IMP):
+        if (lookup[self.opcode].addrmode != self.IMP):
             self.fetched = self.read(self.addr_abs)
 
         return self.fetched
@@ -1206,72 +1207,72 @@ class Py6502:
             # Read instruction, and get its readable name
             opcode: uint8_t = self.bus.cpuRead(addr, True)
             addr+=1
-            sInst += self.lookup[opcode].name + " "
+            sInst += lookup[opcode].name + " "
 
             # Get oprands from desired locations, and form the
             # instruction based upon its addressing mode. These
             # routines mimmick the actual fetch routine of the
             # 6502 in order to get accurate data as part of the
             # instruction
-            if (self.lookup[opcode].addrmode == self.IMP):
+            if (lookup[opcode].addrmode == self.IMP):
                 sInst += " {IMP}"
-            elif (self.lookup[opcode].addrmode == self.IMM):
+            elif (lookup[opcode].addrmode == self.IMM):
                 value = self.bus.cpuRead(addr, True)
                 if addr >= 0x8000 and addr <=0x8020:
                     print("[dis] addr=%x value=%x" % (addr, value))
 
                 addr+=1
                 sInst += "#$" + hex(value) + " {IMM}"
-            elif (self.lookup[opcode].addrmode == self.ZP0):
+            elif (lookup[opcode].addrmode == self.ZP0):
                 lo = self.bus.cpuRead(addr, True)
                 addr+=1
                 hi = 0x00
                 sInst += "$" + hex(lo) + " {ZP0}"
-            elif (self.lookup[opcode].addrmode == self.ZPX):
+            elif (lookup[opcode].addrmode == self.ZPX):
                 lo = self.bus.cpuRead(addr, True)
                 addr+=1
                 hi = 0x00
                 sInst += "$" + hex(lo) + ", X {ZPX}"
-            elif (self.lookup[opcode].addrmode == self.ZPY):
+            elif (lookup[opcode].addrmode == self.ZPY):
                 lo = self.bus.read(addr, True)
                 addr+=1
                 hi = 0x00
                 sInst += "$" + hex(lo) + ", Y {ZPY}"
-            elif (self.lookup[opcode].addrmode == self.IZX):
+            elif (lookup[opcode].addrmode == self.IZX):
                 lo = self.bus.cpuRead(addr, True)
                 addr+=1
                 hi = 0x00
                 sInst += "($" + hex(lo) + ", X) {IZX}"
-            elif (self.lookup[opcode].addrmode == self.IZY):
+            elif (lookup[opcode].addrmode == self.IZY):
                 lo = self.bus.cpuRead(addr, True)
                 addr+=1
                 hi = 0x00
                 sInst += "($" + hex(lo) + "), Y {IZY}"
-            elif (self.lookup[opcode].addrmode == self.ABS):
+            elif (lookup[opcode].addrmode == self.ABS):
                 lo = self.bus.cpuRead(addr, True)
                 addr+=1
                 hi = self.bus.cpuRead(addr, True)
                 addr+=1
                 sInst += "$" + hex((hi << 8) | lo) + " {ABS}"
-            elif (self.lookup[opcode].addrmode == self.ABX):
+            elif (lookup[opcode].addrmode == self.ABX):
                 lo = self.bus.cpuRead(addr, True)
                 addr+=1
                 hi = self.bus.cpuRead(addr, True)
                 addr+=1
                 sInst += "$" + hex((hi << 8) | lo) + ", X {ABX}"
-            elif (self.lookup[opcode].addrmode == self.ABY):
+            elif (lookup[opcode].addrmode == self.ABY):
                 lo = self.bus.cpuRead(addr, True)
                 addr+=1
                 hi = self.bus.cpuRead(addr, True)
                 addr+=1
                 sInst += "$" + hex((hi << 8) | lo) + ", Y {ABY}"
-            elif (self.lookup[opcode].addrmode == self.IND):
+            elif (lookup[opcode].addrmode == self.IND):
                 lo = self.bus.cpuRead(addr, True)
                 addr+=1
                 hi = self.bus.cpuRead(addr, True)
                 addr+=1
                 sInst += "($" + hex((hi << 8) | lo) + ") {IND}"
-            elif (self.lookup[opcode].addrmode == self.REL):
+            elif (lookup[opcode].addrmode == self.REL):
                 value = self.bus.cpuRead(addr, True)
                 addr+=1
                 sInst += "$" + hex(value) + " [$" + hex(addr + value) + "] {REL}"
