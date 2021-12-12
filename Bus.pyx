@@ -1,17 +1,30 @@
+# distutils: language = c++
+# cython: language_level=3
+
 from typing import *
 from pyOlcNES import Py6502, Py2C02, Cartridge
 
+from libc.string cimport memset
+
 uint32_t = uint16_t = uint8_t = int
 
-class Bus:
+cdef class Bus:
+    cdef public object cpu
+    cdef public object ppu
+    cdef public object cart
+    #cdef public unsigned char cpuRam[2048]
+    cdef public object cpuRam
+    cdef public unsigned int nSystemClockCounter
+
     def __init__(self):
         self.cpu = Py6502()
         self.ppu = Py2C02()
         self.cpu.connectBus(self)
         self.cart = None
-        self.cpuRam = [0] * (2 * 1024)
+        self.cpuRam = [0] * 2048
+        #memset(self.cpuRam, 0, 2048)
 
-    def cpuWrite(self, addr: uint16_t, data: uint8_t) -> None:
+    cpdef public void cpuWrite(self, unsigned int addr, unsigned char data):
         res = False
         if self.cart:
             res = self.cart.cpuWrite(addr, data)
@@ -38,9 +51,9 @@ class Bus:
             # which is the equivalent of addr % 8.
             self.ppu.cpuWrite(addr & 0x0007, data)
 
-    def cpuRead(self, addr: uint16_t, bReadOnly: Optional[bool] = False) -> uint8_t:
-        data: uint8_t = 0
-        res = False
+    cpdef public unsigned char cpuRead(self, unsigned int addr, unsigned char bReadOnly):
+        cdef unsigned char data = 0
+        cdef unsigned char res = 0
         if self.cart:
             res, cartData = self.cart.cpuRead(addr, data)
 
