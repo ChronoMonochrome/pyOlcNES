@@ -1819,32 +1819,22 @@ class Bus:
         self.cpu.reset()
         self.nSystemClockCounter = 0
 
+from random import shuffle   
+scanline_contents = [0x30] * (261 * 341 // 2)  + [0x3F] * (261 * 341 // 2)
+
 def emulate_frame(bus):
-    # Clocking. The heart and soul of an emulator. The running
-    # frequency is controlled by whatever calls this function.
-    # So here we "divide" the clock as necessary and call
-    # the peripheral devices clock() function at the correct
-    # times.
-
-    # The fastest clock frequency the digital system cares
-    # about is equivalent to the PPU clock. So the PPU is clocked
-    # each time this function is called.
-
-    # Advance renderer - it never stops, it's relentless
     scanline = 0
     cycle = 0
+    #global scanline_contents
+    #shuffle(scanline_contents)
     for scanline in range(0, 262):
-        bus.ppu.scanline = scanline
-        bus.ppu.cycle = 0
+        #bus.ppu.scanline = scanline
+        #bus.ppu.cycle = 0
         for cycle in range(0, 342):
-            # Fake some noise for now
-            bus.ppu.cycle = cycle
-            bus.ppu.sprScreen.SetPixel(bus.ppu.cycle - 1, bus.ppu.scanline, bus.ppu.palScreen[0x3F if randint(0, 1) else 0x30])
-            # The CPU runs 3 times slower than the PPU so we only call its
-            # clock() function every 3 times this function is called. We
-            # have a global counter to keep track of this.
-            if (bus.nSystemClockCounter % 3 == 0):
+            #bus.ppu.cycle = cycle
+            #bus.ppu.sprScreen.SetPixel(cycle, scanline, bus.ppu.palScreen[scanline_contents[(scanline * 341 + cycle)%89000]])
+            if (cycle % 3 == 0):
                 bus.cpu.clock()
-            bus.nSystemClockCounter+=1
+            #bus.nSystemClockCounter+=1
     bus.ppu.scanline = -1
     bus.ppu.frame_complete = True
