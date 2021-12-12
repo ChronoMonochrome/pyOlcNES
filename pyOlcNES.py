@@ -1696,19 +1696,6 @@ class Py2C02:
     def connectCartridge(self, cart: Cartridge) -> None:
         self.cart = cart
 
-    def clock(self) -> None:
-        # Fake some noise for now
-        self.sprScreen.SetPixel(self.cycle - 1, self.scanline, self.palScreen[0x3F if randint(0, 1) else 0x30])
-
-        # Advance renderer - it never stops, it's relentless
-        self.cycle+=int16_t(1)
-        if (self.cycle >= 341):
-            self.cycle = int16_t(0)
-            self.scanline+=int16_t(1)
-            if (self.scanline >= 261):
-                self.scanline = int16_t(-1)
-                self.frame_complete = True
-
     def cpuRead(self, addr: uint16_t, rdonly: Optional[bool] = False) -> uint8_t:
         data: uint8_t = 0x00
 
@@ -1832,22 +1819,32 @@ class Bus:
         self.cpu.reset()
         self.nSystemClockCounter = 0
 
-    def clock(self) -> None:
-        # Clocking. The heart and soul of an emulator. The running
-        # frequency is controlled by whatever calls this function.
-        # So here we "divide" the clock as necessary and call
-        # the peripheral devices clock() function at the correct
-        # times.
+def emulate_frame(bus):
+    # Clocking. The heart and soul of an emulator. The running
+    # frequency is controlled by whatever calls this function.
+    # So here we "divide" the clock as necessary and call
+    # the peripheral devices clock() function at the correct
+    # times.
 
-        # The fastest clock frequency the digital system cares
-        # about is equivalent to the PPU clock. So the PPU is clocked
-        # each time this function is called.
-        self.ppu.clock()
+    # The fastest clock frequency the digital system cares
+    # about is equivalent to the PPU clock. So the PPU is clocked
+    # each time this function is called.
 
-        # The CPU runs 3 times slower than the PPU so we only call its
-        # clock() function every 3 times this function is called. We
-        # have a global counter to keep track of this.
-        if (self.nSystemClockCounter % 3 == 0):
-            self.cpu.clock()
-
-        self.nSystemClockCounter+=1
+    # Advance renderer - it never stops, it's relentless
+    scanline = 0
+    cycle = 0
+    for scanline in range(0, 262):
+        bus.ppu.scanline = scanline
+        bus.ppu.cycle = 0
+        for cycle in range(0, 342):
+            # Fake some noise for now
+            bus.ppu.cycle = cycle
+            bus.ppu.sprScreen.SetPixel(bus.ppu.cycle - 1, bus.ppu.scanline, bus.ppu.palScreen[0x3F if randint(0, 1) else 0x30])
+            # The CPU runs 3 times slower than the PPU so we only call its
+            # clock() function every 3 times this function is called. We
+            # have a global counter to keep track of this.
+            if (bus.nSystemClockCounter % 3 == 0):
+                bus.cpu.clock()
+            bus.nSystemClockCounter+=1
+    bus.ppu.scanline = -1
+    bus.ppu.frame_complete = True

@@ -25,8 +25,9 @@
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+import time
 import olc
-from pyOlcNES import Bus, Cartridge, FLAGS6502
+from pyOlcNES import Bus, Cartridge, FLAGS6502, emulate_frame
 from itertools import dropwhile
 
 class Demo_olc6502(olc.PixelGameEngine):
@@ -36,6 +37,9 @@ class Demo_olc6502(olc.PixelGameEngine):
         self.cart = None
         self.bEmulationRun = True
         self.fResidualTime = 0.0
+        
+        self.updateCalls = 0
+        self.t1 = 0
         self._w = 0
         self._h = 0
 
@@ -128,18 +132,25 @@ class Demo_olc6502(olc.PixelGameEngine):
         return True
 
     def OnUserUpdate(self, fElapsedTime):
+        print("call number: %d" % self.updateCalls)
+        self.updateCalls += 1
         self.Clear(olc.Pixel.DARK_BLUE)
 
         if (self.bEmulationRun):
+            #self.t1 = time.time()
+            #while True:
+            #   self.nes.clock()
+            #   if self.nes.ppu.frame_complete:
+            #       break
+            #self.nes.ppu.frame_complete = False
+            #self.t1 = time.time() - self.t1
+            #print("time to draw a frame: %f" % self.t1)
             if (self.fResidualTime > 0.0):
-                self.fResidualTime -= fElapsedTime
+               self.fResidualTime -= fElapsedTime
             else:
-                self.fResidualTime += (1.0 / 60.0) - fElapsedTime
-                while True:
-                    self.nes.clock()
-                    if self.nes.ppu.frame_complete:
-                        break
-                self.nes.ppu.frame_complete = False
+               self.fResidualTime += (1.0 / 60.0) - fElapsedTime
+               emulate_frame(self.nes)
+               self.nes.ppu.frame_complete = False
         else:
             # Emulate code step-by-step
             if (self.GetKey(olc.C).bPressed):
