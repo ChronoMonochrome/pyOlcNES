@@ -1,27 +1,22 @@
 from typing import *
 from pyOlcNES import Py6502, Py2C02, Cartridge
 
-cdef class Bus:
-    cdef public object cpu
-    cdef public object ppu
-    cdef public object cart
-    cdef public int cpuRam[2048]
+uint32_t = uint16_t = uint8_t = int
 
-    cdef public int nSystemClockCounter
-
+class Bus:
     def __init__(self):
         self.cpu = Py6502()
         self.ppu = Py2C02()
         self.cpu.connectBus(self)
-        #self.cpuRam = [0] * (2 * 1024)
+        self.cart = None
+        self.cpuRam = [0] * (2 * 1024)
 
     def cpuWrite(self, addr: uint16_t, data: uint8_t) -> None:
         res = False
-        cartData = 0
         if self.cart:
-            cartData = self.cart.cpuWrite(addr, data)
+            res = self.cart.cpuWrite(addr, data)
 
-        if (cartData != 0xdeadbeef):
+        if (res):
             # The cartridge "sees all" and has the facility to veto
             # the propagation of the bus transaction if it requires.
             # This allows the cartridge to map any address to some
@@ -45,12 +40,11 @@ cdef class Bus:
 
     def cpuRead(self, addr: uint16_t, bReadOnly: Optional[bool] = False) -> uint8_t:
         data: uint8_t = 0
-        cartData = 0
-
+        res = False
         if self.cart:
-            cartData = self.cart.cpuRead(addr, data)
+            res, cartData = self.cart.cpuRead(addr, data)
 
-        if (cartData != 0xdeadbeef):
+        if (res):
             # Cartridge Address Range
             data = cartData
         elif (addr >= 0x0000 and addr < 0x1FFF):

@@ -115,31 +115,31 @@ class Cartridge:
     def imageValid(self) -> bool:
         return self.bImageValid
 
-    def cpuRead(self, addr: uint16_t, data: uint8_t):
-        mapped_addr = self.pMapper.cpuMapRead(addr)
-        if (mapped_addr != 0xdeadbeef):
-            return self.vPRGMemory[mapped_addr]
+    def cpuRead(self, addr: uint16_t, data: uint8_t) -> Tuple[bool, bytes]:
+        res, mapped_addr = self.pMapper.cpuMapRead(addr)
+        if (res):
+            return (True, self.vPRGMemory[mapped_addr])
         else:
-            return 0xdeadbeef
+            return (False, bytes())
 
     def cpuWrite(self, addr: uint16_t, data: uint8_t) -> bool:
-        mapped_addr = self.pMapper.cpuMapWrite(addr)
-        if (mapped_addr != 0xdeadbeef):
+        res, mapped_addr = self.pMapper.cpuMapWrite(addr)
+        if (res):
             self.vPRGMemory[mapped_addr] = data
             return True
         else:
             return False
 
-    def ppuRead(self, addr: uint16_t, data: uint8_t):
-        mapped_addr = self.pMapper.ppuMapRead(addr)
-        if (mapped_addr != 0xdeadbeef):
-            return self.vCHRMemory[mapped_addr]
+    def ppuRead(self, addr: uint16_t, data: uint8_t) -> Tuple[bool, bytes]:
+        res, mapped_addr = self.pMapper.ppuMapRead(addr)
+        if (res):
+            return (True, self.vCHRMemory[mapped_addr])
         else:
-            return 0xdeadbeef
+            return (False, bytes())
 
     def ppuWrite(self, addr: uint16_t, data: uint8_t) -> bool:
-        mapped_addr = self.pMapper.ppuMapWrite(addr)
-        if (mapped_addr != 0xdeadbeef):
+        res, mapped_addr = self.pMapper.ppuMapWrite(addr)
+        if (res):
             self.vCHRMemory[mapped_addr] = data
             return True
         else:

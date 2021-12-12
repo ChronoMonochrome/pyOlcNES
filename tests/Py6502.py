@@ -36,27 +36,7 @@ from lookup import get_lookup_table
 
 lookup = []
 
-cdef class Py6502:
-    # CPU Core registers, exposed as public here for ease of access from external
-    # examinors. This is all the 6502 has.
-    cdef public int a         # Accumulator Register
-    cdef public int x         # X Register
-    cdef public int y         # Y Register
-    cdef public int stkp      # Stack Pointer (points to location on bus)
-    cdef public int pc        # Program Counter
-    cdef public int status    # Status Register
-
-    # Assisstive variables to facilitate emulation
-    cdef public int fetched     # Represents the working input value to the ALU
-    cdef public int temp        # A convenience variable used everywhere
-    cdef public int addr_abs    # All used memory addresses end up in here
-    cdef public int addr_rel    # Represents absolute address following a branch
-    cdef public int opcode      # Is the instruction byte
-    cdef public int cycles      # Counts how many cycles the instruction has remaining
-    cdef public int clock_count # A global accumulation of the number of clocks
-	
-    cdef public object bus
-
+class Py6502:
     def __init__(self):
         self.a = 0
         self.x = 0

@@ -1,34 +1,38 @@
 from typing import *
 
-cdef class Mapper:
-    cdef public unsigned int nPRGBanks
-    cdef public unsigned int nCHRBanks
+from abc import ABC, abstractmethod
+
+uint32_t = uint16_t = uint8_t = int
+
+class Mapper(ABC):
+    nPRGBanks: uint8_t = 0
+    nCHRBanks: uint8_t = 0
 
     def __init__(self, nPRGBanks, nCHRBanks):
         self.nPRGBanks = nPRGBanks
         self.nCHRBanks = nCHRBanks
 
-    cpdef public unsigned int cpuMapRead(self, unsigned int addr):
+    @abstractmethod
+    def cpuMapRead(self, addr: uint16_t):
         pass
 
-    cpdef public unsigned int cpuMapWrite(self, unsigned int addr):
+    @abstractmethod
+    def cpuMapWrite(self, addr: uint16_t):
         pass
 
-    cpdef public unsigned int ppuMapRead(self, unsigned int addr):
+    @abstractmethod
+    def ppuMapRead(self, addr: uint16_t):
         pass
 
-    cpdef public unsigned int ppuMapWrite(self, unsigned int addr):
+    @abstractmethod
+    def ppuMapWrite(self, addr: uint16_t):
         pass
 
-cdef class Mapper_000:
-    cdef public unsigned int nPRGBanks
-    cdef public unsigned int nCHRBanks
-
+class Mapper_000(Mapper):
     def __init__(self, nPRGBanks, nCHRBanks):
-        self.nPRGBanks = nPRGBanks
-        self.nCHRBanks = nCHRBanks
+        Mapper.__init__(self, nPRGBanks, nCHRBanks)
 
-    cpdef public unsigned int cpuMapRead(self, unsigned int addr):
+    def cpuMapRead(self, addr: uint16_t) -> Tuple[bool, uint32_t]:
         # if PRGROM is 16KB
         #     CPU Address Bus          PRG ROM
         #     0x8000 -> 0xBFFF: Map    0x0000 -> 0x3FFF
@@ -38,32 +42,32 @@ cdef class Mapper_000:
         #     0x8000 -> 0xFFFF: Map    0x0000 -> 0x7FFF
         if (addr >= 0x8000 and addr <= 0xFFFF):
             mapped_addr = addr & (0x7FFF if self.nPRGBanks > 1 else 0x3FFF)
-            return mapped_addr
+            return (True, mapped_addr)
 
-        return 0xdeadbeef
+        return (False, 0)
 
-    cpdef public unsigned int cpuMapWrite(self, unsigned int addr):
+    def cpuMapWrite(self, addr: uint16_t) -> Tuple[bool, uint32_t]:
         if (addr >= 0x8000 and addr <= 0xFFFF):
             mapped_addr = addr & (0x7FFF if self.nPRGBanks > 1 else 0x3FFF)
-            return mapped_addr
+            return (True, mapped_addr)
 
-        return 0xdeadbeef
+        return (False, 0)
 
-    cpdef public unsigned int ppuMapRead(self, unsigned int addr):
+    def ppuMapRead(self, addr: uint16_t) -> Tuple[bool, uint32_t]:
         # There is no mapping required for PPU
         # PPU Address Bus          CHR ROM
         # 0x0000 -> 0x1FFF: Map    0x0000 -> 0x1FFF
         if (addr >= 0x0000 and addr <= 0x1FFF):
-            mapped_addr = addr
-            return mapped_addr
+            mapped_addr = uint32_t(addr)
+            return (True, mapped_addr)
 
-        return 0xdeadbeef
+        return (False, 0)
 
-    cpdef public unsigned int ppuMapWrite(self, unsigned int addr):
+    def ppuMapWrite(self, addr: uint16_t) -> Tuple[bool, uint32_t]:
         if (addr >= 0x0000 and addr <= 0x1FFF):
             if (self.nCHRBanks == 0):
                 # Treat as RAM
                 mapped_addr = addr
                 return (True, mapped_addr)
 
-        return 0xdeadbeef
+        return (False, 0)
