@@ -1054,19 +1054,8 @@ class Py6502:
         # based on https:#wiki.nesdev.com/w/index.php/CPU_unofficial_opcodes
         # and will add more based on game compatibility, and ultimately
         # I'd like to cover all illegal opcodes too
-        match (self.opcode):
-            case 0x1C:
-                return 1
-            case 0x3C:
-                return 1
-            case 0x5C:
-                return 1
-            case 0x7C:
-                return 1
-            case 0xDC:
-                return 1
-            case 0xFC:
-                return 1
+        if self.opcode in [0x1C, 0x3C, 0x5C, 0x7C, 0xDC, 0xFC]:
+            return 1
 
         return 0
 
@@ -1545,11 +1534,10 @@ class Cartridge:
                 pass
 
             # Load appropriate mapper
-            match (self.nMapperID):
-                case 0:
-                    self.pMapper = Mapper_000(self.nPRGBanks, self.nCHRBanks)
-                case _:
-                    raise RuntimeError("Unsupported mapperID %d" % self.nMapperID)
+            if self.nMapperID == 0:
+                self.pMapper = Mapper_000(self.nPRGBanks, self.nCHRBanks)
+            else:
+                raise RuntimeError("Unsupported mapperID %d" % self.nMapperID)
 
             self.bImageValid = True;
             fd.close()
@@ -1711,44 +1699,42 @@ class Py2C02:
     def cpuRead(self, addr: uint16_t, rdonly: Optional[bool] = False) -> uint8_t:
         data: uint8_t = 0x00
 
-        match (addr):
-            case 0x0000: # Control
-                pass
-            case 0x0001: # Mask
-                pass
-            case 0x0002: # Status
-                pass
-            case 0x0003: # OAM Address
-                pass
-            case 0x0004: # OAM Data
-                pass
-            case 0x0005: # Scroll
-                pass
-            case 0x0006: # PPU Address
-                pass
-            case 0x0007: # PPU Data
-                pass
+        if addr == 0x0000: # Control
+            pass
+        elif addr == 0x0001: # Mask
+            pass
+        elif addr == 0x0002: # Status
+            pass
+        elif addr ==  0x0003: # OAM Address
+            pass
+        elif addr ==  0x0004: # OAM Data
+            pass
+        elif addr ==  0x0005: # Scroll
+            pass
+        elif addr ==  0x0006: # PPU Address
+            pass
+        elif addr ==  0x0007: # PPU Data
+            pass
 
         return data
 
     def cpuWrite(self, addr: uint16_t, data: uint8_t) -> None:
-        match (addr):
-            case 0x0000: # Control
-                pass
-            case 0x0001: # Mask
-                pass
-            case 0x0002: # Status
-                pass
-            case 0x0003: # OAM Address
-                pass
-            case 0x0004: # OAM Data
-                pass
-            case 0x0005: # Scroll
-                pass
-            case 0x0006: # PPU Address
-                pass
-            case 0x0007: # PPU Data
-                pass
+        if addr == 0x0000: # Control
+            pass
+        elif addr == 0x0001: # Mask
+            pass
+        elif addr == 0x0002: # Status
+            pass
+        elif addr ==  0x0003: # OAM Address
+            pass
+        elif addr ==  0x0004: # OAM Data
+            pass
+        elif addr ==  0x0005: # Scroll
+            pass
+        elif addr ==  0x0006: # PPU Address
+            pass
+        elif addr ==  0x0007: # PPU Data
+            pass
 
     def ppuRead(self, addr: uint16_t, rdonly: Optional[bool] = False) -> uint8_t:
         data: uint8_t = 0x00
