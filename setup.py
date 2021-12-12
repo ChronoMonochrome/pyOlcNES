@@ -82,5 +82,5 @@ def cygwinccompiler_init(self, verbose=0, dry_run=0, force=0):
 with mock.patch('distutils.cygwinccompiler.get_msvcr', get_msvcr):
     with mock.patch('distutils.cygwinccompiler.Mingw32CCompiler.__init__', cygwinccompiler_init):
         setup(
-            ext_modules = cythonize("pyOlcNES.py")
+            ext_modules = cythonize("*.pyx")
         )
