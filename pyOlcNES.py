@@ -28,6 +28,7 @@
 
 import io
 import struct
+import olc
 
 from abc import ABC, abstractmethod
 from typing import *
@@ -1385,27 +1386,6 @@ class Py6502:
 
         return mapLines
 
-@dataclass
-class Pixel:
-    r: uint8_t
-    g: uint8_t
-    b: uint8_t
-
-class Sprite:
-    width: int
-    height: int
-    pColData: List[Pixel]
-
-    def __init__(self, width: int, height: int):
-        self.pColData = [None] * (width * height)
-
-    def setPixel(self, x: int, y: int, p: Pixel) -> bool:
-        if (x >= 0 and x < self.width and y >= 0 and y < self.height):
-            pColData[y * self.width + x] = p;
-            return True
-        else:
-            return False
-
 class Mapper(ABC):
     nPRGBanks: uint8_t = uint8_t(0)
     nCHRBanks: uint8_t = uint8_t(0)
@@ -1611,10 +1591,10 @@ class Py2C02:
     tblName: List[List[uint8_t]]
     tblPattern: List[List[uint8_t]]
     tblPalette: List[uint8_t]
-    palScreen: List[Pixel]
-    sprScreen: Sprite
-    sprNameTable: List[Sprite]
-    sprPatternTable: List[Sprite]
+    palScreen: List[olc.Pixel]
+    sprScreen: olc.Sprite
+    sprNameTable: List[olc.Sprite]
+    sprPatternTable: List[olc.Sprite]
     frame_complete: bool
     scanline: int16_t
     cycle: int16_t
@@ -1624,90 +1604,90 @@ class Py2C02:
         self.tblPattern = [[uint8_t(0)] * 4096] * 2
         self.tblPalette = [uint8_t(0)] * 32
         palScreen = [None] * 0x40
-        palScreen[0x00] = Pixel(84, 84, 84)
-        palScreen[0x01] = Pixel(0, 30, 116)
-        palScreen[0x02] = Pixel(8, 16, 144)
-        palScreen[0x03] = Pixel(48, 0, 136)
-        palScreen[0x04] = Pixel(68, 0, 100)
-        palScreen[0x05] = Pixel(92, 0, 48)
-        palScreen[0x06] = Pixel(84, 4, 0)
-        palScreen[0x07] = Pixel(60, 24, 0)
-        palScreen[0x08] = Pixel(32, 42, 0)
-        palScreen[0x09] = Pixel(8, 58, 0)
-        palScreen[0x0A] = Pixel(0, 64, 0)
-        palScreen[0x0B] = Pixel(0, 60, 0)
-        palScreen[0x0C] = Pixel(0, 50, 60)
-        palScreen[0x0D] = Pixel(0, 0, 0)
-        palScreen[0x0E] = Pixel(0, 0, 0)
-        palScreen[0x0F] = Pixel(0, 0, 0)
+        palScreen[0x00] = olc.Pixel(84, 84, 84)
+        palScreen[0x01] = olc.Pixel(0, 30, 116)
+        palScreen[0x02] = olc.Pixel(8, 16, 144)
+        palScreen[0x03] = olc.Pixel(48, 0, 136)
+        palScreen[0x04] = olc.Pixel(68, 0, 100)
+        palScreen[0x05] = olc.Pixel(92, 0, 48)
+        palScreen[0x06] = olc.Pixel(84, 4, 0)
+        palScreen[0x07] = olc.Pixel(60, 24, 0)
+        palScreen[0x08] = olc.Pixel(32, 42, 0)
+        palScreen[0x09] = olc.Pixel(8, 58, 0)
+        palScreen[0x0A] = olc.Pixel(0, 64, 0)
+        palScreen[0x0B] = olc.Pixel(0, 60, 0)
+        palScreen[0x0C] = olc.Pixel(0, 50, 60)
+        palScreen[0x0D] = olc.Pixel(0, 0, 0)
+        palScreen[0x0E] = olc.Pixel(0, 0, 0)
+        palScreen[0x0F] = olc.Pixel(0, 0, 0)
 
-        palScreen[0x10] = Pixel(152, 150, 152)
-        palScreen[0x11] = Pixel(8, 76, 196)
-        palScreen[0x12] = Pixel(48, 50, 236)
-        palScreen[0x13] = Pixel(92, 30, 228)
-        palScreen[0x14] = Pixel(136, 20, 176)
-        palScreen[0x15] = Pixel(160, 20, 100)
-        palScreen[0x16] = Pixel(152, 34, 32)
-        palScreen[0x17] = Pixel(120, 60, 0)
-        palScreen[0x18] = Pixel(84, 90, 0)
-        palScreen[0x19] = Pixel(40, 114, 0)
-        palScreen[0x1A] = Pixel(8, 124, 0)
-        palScreen[0x1B] = Pixel(0, 118, 40)
-        palScreen[0x1C] = Pixel(0, 102, 120)
-        palScreen[0x1D] = Pixel(0, 0, 0)
-        palScreen[0x1E] = Pixel(0, 0, 0)
-        palScreen[0x1F] = Pixel(0, 0, 0)
+        palScreen[0x10] = olc.Pixel(152, 150, 152)
+        palScreen[0x11] = olc.Pixel(8, 76, 196)
+        palScreen[0x12] = olc.Pixel(48, 50, 236)
+        palScreen[0x13] = olc.Pixel(92, 30, 228)
+        palScreen[0x14] = olc.Pixel(136, 20, 176)
+        palScreen[0x15] = olc.Pixel(160, 20, 100)
+        palScreen[0x16] = olc.Pixel(152, 34, 32)
+        palScreen[0x17] = olc.Pixel(120, 60, 0)
+        palScreen[0x18] = olc.Pixel(84, 90, 0)
+        palScreen[0x19] = olc.Pixel(40, 114, 0)
+        palScreen[0x1A] = olc.Pixel(8, 124, 0)
+        palScreen[0x1B] = olc.Pixel(0, 118, 40)
+        palScreen[0x1C] = olc.Pixel(0, 102, 120)
+        palScreen[0x1D] = olc.Pixel(0, 0, 0)
+        palScreen[0x1E] = olc.Pixel(0, 0, 0)
+        palScreen[0x1F] = olc.Pixel(0, 0, 0)
 
-        palScreen[0x20] = Pixel(236, 238, 236)
-        palScreen[0x21] = Pixel(76, 154, 236)
-        palScreen[0x22] = Pixel(120, 124, 236)
-        palScreen[0x23] = Pixel(176, 98, 236)
-        palScreen[0x24] = Pixel(228, 84, 236)
-        palScreen[0x25] = Pixel(236, 88, 180)
-        palScreen[0x26] = Pixel(236, 106, 100)
-        palScreen[0x27] = Pixel(212, 136, 32)
-        palScreen[0x28] = Pixel(160, 170, 0)
-        palScreen[0x29] = Pixel(116, 196, 0)
-        palScreen[0x2A] = Pixel(76, 208, 32)
-        palScreen[0x2B] = Pixel(56, 204, 108)
-        palScreen[0x2C] = Pixel(56, 180, 204)
-        palScreen[0x2D] = Pixel(60, 60, 60)
-        palScreen[0x2E] = Pixel(0, 0, 0)
-        palScreen[0x2F] = Pixel(0, 0, 0)
+        palScreen[0x20] = olc.Pixel(236, 238, 236)
+        palScreen[0x21] = olc.Pixel(76, 154, 236)
+        palScreen[0x22] = olc.Pixel(120, 124, 236)
+        palScreen[0x23] = olc.Pixel(176, 98, 236)
+        palScreen[0x24] = olc.Pixel(228, 84, 236)
+        palScreen[0x25] = olc.Pixel(236, 88, 180)
+        palScreen[0x26] = olc.Pixel(236, 106, 100)
+        palScreen[0x27] = olc.Pixel(212, 136, 32)
+        palScreen[0x28] = olc.Pixel(160, 170, 0)
+        palScreen[0x29] = olc.Pixel(116, 196, 0)
+        palScreen[0x2A] = olc.Pixel(76, 208, 32)
+        palScreen[0x2B] = olc.Pixel(56, 204, 108)
+        palScreen[0x2C] = olc.Pixel(56, 180, 204)
+        palScreen[0x2D] = olc.Pixel(60, 60, 60)
+        palScreen[0x2E] = olc.Pixel(0, 0, 0)
+        palScreen[0x2F] = olc.Pixel(0, 0, 0)
 
-        palScreen[0x30] = Pixel(236, 238, 236)
-        palScreen[0x31] = Pixel(168, 204, 236)
-        palScreen[0x32] = Pixel(188, 188, 236)
-        palScreen[0x33] = Pixel(212, 178, 236)
-        palScreen[0x34] = Pixel(236, 174, 236)
-        palScreen[0x35] = Pixel(236, 174, 212)
-        palScreen[0x36] = Pixel(236, 180, 176)
-        palScreen[0x37] = Pixel(228, 196, 144)
-        palScreen[0x38] = Pixel(204, 210, 120)
-        palScreen[0x39] = Pixel(180, 222, 120)
-        palScreen[0x3A] = Pixel(168, 226, 144)
-        palScreen[0x3B] = Pixel(152, 226, 180)
-        palScreen[0x3C] = Pixel(160, 214, 228)
-        palScreen[0x3D] = Pixel(160, 162, 160)
-        palScreen[0x3E] = Pixel(0, 0, 0)
-        palScreen[0x3F] = Pixel(0, 0, 0)
+        palScreen[0x30] = olc.Pixel(236, 238, 236)
+        palScreen[0x31] = olc.Pixel(168, 204, 236)
+        palScreen[0x32] = olc.Pixel(188, 188, 236)
+        palScreen[0x33] = olc.Pixel(212, 178, 236)
+        palScreen[0x34] = olc.Pixel(236, 174, 236)
+        palScreen[0x35] = olc.Pixel(236, 174, 212)
+        palScreen[0x36] = olc.Pixel(236, 180, 176)
+        palScreen[0x37] = olc.Pixel(228, 196, 144)
+        palScreen[0x38] = olc.Pixel(204, 210, 120)
+        palScreen[0x39] = olc.Pixel(180, 222, 120)
+        palScreen[0x3A] = olc.Pixel(168, 226, 144)
+        palScreen[0x3B] = olc.Pixel(152, 226, 180)
+        palScreen[0x3C] = olc.Pixel(160, 214, 228)
+        palScreen[0x3D] = olc.Pixel(160, 162, 160)
+        palScreen[0x3E] = olc.Pixel(0, 0, 0)
+        palScreen[0x3F] = olc.Pixel(0, 0, 0)
 
         self.palScreen = palScreen
-        self.sprScreen = Sprite(256, 240)
-        self.sprNameTable = [Sprite(256, 240), Sprite(256, 240)]
-        self.sprPatternTable = [Sprite(128, 128), Sprite(128, 128)]
+        self.sprScreen = olc.Sprite(256, 240)
+        self.sprNameTable = [olc.Sprite(256, 240), olc.Sprite(256, 240)]
+        self.sprPatternTable = [olc.Sprite(128, 128), olc.Sprite(128, 128)]
 
         self.frame_complete = False
         self.scanline = 0
         self.cycle = 0
 
-    def getScreen(self) -> Sprite:
+    def getScreen(self) -> olc.Sprite:
         return self.sprScreen
 
-    def getNameTable(self, i: uint8_t) -> Sprite:
+    def getNameTable(self, i: uint8_t) -> olc.Sprite:
         return self.sprNameTable[i]
 
-    def getPatternTable(self, i: uint8_t) -> Sprite:
+    def getPatternTable(self, i: uint8_t) -> olc.Sprite:
         return self.sprPatternTable[i]
 
     def connectCartridge(self, cart: Cartridge) -> None:
