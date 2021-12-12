@@ -35,7 +35,8 @@ from typing import *
 from enum import IntEnum, Enum, auto
 from dataclasses import dataclass, field
 from random import randint
-from numpy import uint8 as uint8_t, uint16 as uint16_t, uint32 as uint32_t, int16 as int16_t
+
+uint8_t = uint16_t = uint32_t = int16_t = int
 
 DEBUG = 0
 VERBOSE_DEBUG = 0
@@ -80,19 +81,19 @@ class Py6502:
     lookup: List[INSTRUCTION]
 
     def __init__(self):
-        self.a = uint8_t(0)
-        self.x = uint8_t(0)
-        self.y = uint8_t(0)
-        self.stkp = uint8_t(0)
+        self.a = 0
+        self.x = 0
+        self.y = 0
+        self.stkp = 0
         self.pc = uint16_t(0)
-        self.status = uint8_t(0)
-        self.fetched = uint8_t(0)
+        self.status = 0
+        self.fetched = 0
         self.temp = uint16_t(0)
         self.addr_abs = uint16_t(0)
         self.addr_rel = uint16_t(0)
-        self.opcode = uint8_t(0)
-        self.cycles = uint8_t(0)
-        self.clock_count = uint32_t(0)
+        self.opcode = 0
+        self.cycles = 0
+        self.clock_count = 0
 
         s = self
         I = INSTRUCTION
@@ -163,9 +164,9 @@ class Py6502:
         self.pc = uint16_t((hi << 8) | lo)
 
         # Reset internal registers
-        self.a = uint8_t(0)
-        self.x = uint8_t(0)
-        self.y = uint8_t(0)
+        self.a = 0
+        self.x = 0
+        self.y = 0
         self.stkp = uint8_t(0xFD)
         self.status = uint8_t(0x00 | FLAGS6502.U)
 
@@ -197,16 +198,16 @@ class Py6502:
             # Push the program counter to the stack. It's 16-bits dont
             # forget so that takes two pushes
             self.write(0x0100 + self.stkp, (self.pc >> 8) & 0x00FF)
-            self.stkp-=uint8_t(1)
+            self.stkp-=1
             self.write(0x0100 + self.stkp, self.pc & 0x00FF)
-            self.stkp-=uint8_t(1)
+            self.stkp-=1
 
             # Then Push the status register to the stack
             self.setFlag(FLAGS6502.B, False)
             self.setFlag(FLAGS6502.U, True)
             self.setFlag(FLAGS6502.I, True)
             self.write(0x0100 + self.stkp, self.status)
-            self.stkp-=uint8_t(1)
+            self.stkp-=1
 
             # Read new program counter location from fixed address
             self.addr_abs = uint16_t(0xFFFE)
@@ -223,15 +224,15 @@ class Py6502:
     # form location 0xFFFA.
     def nmi(self) -> None:
         self.write(0x0100 + self.stkp, (self.pc >> 8) & 0x00FF)
-        self.stkp-=uint8_t(1)
+        self.stkp-=1
         self.write(0x0100 + self.stkp, self.pc & 0x00FF)
-        self.stkp-=uint8_t(1)
+        self.stkp-=1
 
         self.setFlag(FLAGS6502.B, False)
         self.setFlag(FLAGS6502.U, True)
         self.setFlag(FLAGS6502.I, True)
         self.write(0x0100 + self.stkp, self.status)
-        self.stkp-=uint8_t(1)
+        self.stkp-=1
 
         self.addr_abs = uint16_t(0xFFFA)
         lo: uint16_t = self.read(self.addr_abs + 0)
@@ -267,7 +268,7 @@ class Py6502:
             self.setFlag(FLAGS6502.U, True)
 
             # Increment program counter, we read the opcode byte
-            self.pc = uint16_t(self.pc + uint16_t(1))
+            self.pc = (self.pc + 1) & 0xffff
 
             # Get Starting number of cycles
             self.cycles = self.lookup[self.opcode].cycles
@@ -303,10 +304,10 @@ class Py6502:
 
         # Increment global clock count - This is actually unused unless logging is enabled
         # but I've kept it in because its a handy watch variable for debugging
-        self.clock_count+=uint8_t(1)
+        self.clock_count+=1
 
         # Decrement the number of cycles remaining for this instruction
-        self.cycles-=uint8_t(1)
+        self.cycles-=1
 
     # Convenience functions to access status register
     def getFlag(self, f: FLAGS6502) -> uint8_t:
@@ -355,7 +356,7 @@ class Py6502:
     # one byte instead of the usual two.
     def ZP0(self) -> uint8_t:
         self.addr_abs = self.read(self.pc)
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
         self.addr_abs &= uint16_t(0x00FF)
         return 0
 
@@ -365,7 +366,7 @@ class Py6502:
     # ranges within the first page.
     def ZPX(self) -> uint8_t:
         self.addr_abs = (self.read(self.pc) + self.x)
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
         self.addr_abs &= uint16_t(0x00FF)
         return 0
 
@@ -373,7 +374,7 @@ class Py6502:
     # Same as above but uses Y Register for offset
     def ZPY(self) -> uint8_t:
         self.addr_abs = (self.read(self.pc) + self.y)
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
         self.addr_abs &= uint16_t(0x00FF)
         return 0
 
@@ -383,7 +384,7 @@ class Py6502:
     # you cant directly branch to any address in the addressable range.
     def REL(self) -> uint8_t:
         self.addr_rel = self.read(self.pc)
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
         if (self.addr_rel & 0x80):
             self.addr_rel |= uint16_t(0xFF00)
         return 0
@@ -392,9 +393,9 @@ class Py6502:
     # A full 16-bit address is loaded and used
     def ABS(self) -> uint8_t:
         lo: uint16_t = self.read(self.pc)
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
         hi: uint16_t = self.read(self.pc)
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
 
         self.addr_abs = uint16_t((hi << 8) | lo)
 
@@ -406,9 +407,9 @@ class Py6502:
     # the page, an additional clock cycle is required
     def ABX(self) -> uint8_t:
         lo: uint16_t = self.read(self.pc)
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
         hi: uint16_t = self.read(self.pc)
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
 
         self.addr_abs = uint16_t((hi << 8) | lo)
         self.addr_abs += self.x
@@ -425,9 +426,9 @@ class Py6502:
     # the page, an additional clock cycle is required
     def ABY(self) -> uint8_t:
         lo: uint16_t = self.read(self.pc)
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
         hi: uint16_t = self.read(self.pc)
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
 
         self.addr_abs = uint16_t((hi << 8) | lo)
         self.addr_abs += self.y
@@ -449,9 +450,9 @@ class Py6502:
     # invalid actual address
     def IND(self) -> uint8_t:
         ptr_lo: uint16_t = self.read(self.pc)
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
         ptr_hi: uint16_t = self.read(self.pc)
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
 
         ptr: uint16_t = uint16_t((ptr_hi << 8) | ptr_lo)
 
@@ -469,7 +470,7 @@ class Py6502:
     # from this location
     def IZX(self) -> uint8_t:
         t: uint16_t = self.read(self.pc)
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
 
         lo: uint16_t = self.read((t + self.x) & 0x00FF)
         hi: uint16_t = self.read((t + self.x + 1) & 0x00FF)
@@ -485,7 +486,7 @@ class Py6502:
     # change in page then an additional clock cycle is required.
     def IZY(self) -> uint8_t:
         t: uint16_t = self.read(self.pc)
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
 
         lo: uint16_t = self.read(t & 0x00FF)
         hi: uint16_t = self.read((t + 1) & 0x00FF)
@@ -688,7 +689,7 @@ class Py6502:
     # Flags Out:   N, Z, C
     def ASL(self) -> uint8_t:
         self.fetch()
-        self.temp = self.fetched << uint8_t(1)
+        self.temp = self.fetched << 1
         self.setFlag(FLAGS6502.C, (self.temp & 0xFF00) > 0)
         self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x00)
         self.setFlag(FLAGS6502.N, self.temp & 0x80)
@@ -703,11 +704,11 @@ class Py6502:
     # Function:    if(C == 0) pc = address
     def BCC(self) -> uint8_t:
         if (self.getFlag(FLAGS6502.C) == 0):
-            self.cycles+=uint8_t(1)
-            self.addr_abs = uint16_t(uint16_t(self.pc) + uint16_t(self.addr_rel))
+            self.cycles+=1
+            self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
             if((self.addr_abs & 0xFF00) != (self.pc & 0xFF00)):
-                self.cycles+=uint8_t(1)
+                self.cycles+=1
 
             self.pc = self.addr_abs
         return 0
@@ -717,11 +718,11 @@ class Py6502:
     # Function:    if(C == 1) pc = address
     def BCS(self) -> uint8_t:
         if (self.getFlag(FLAGS6502.C) == 1):
-            self.cycles+=uint8_t(1)
-            self.addr_abs = uint16_t(uint16_t(self.pc) + uint16_t(self.addr_rel))
+            self.cycles+=1
+            self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
             if ((self.addr_abs & 0xFF00) != (self.pc & 0xFF00)):
-                self.cycles+=uint8_t(1)
+                self.cycles+=1
 
             self.pc = self.addr_abs
         return 0
@@ -731,11 +732,11 @@ class Py6502:
     # Function:    if(Z == 1) pc = address
     def BEQ(self) -> uint8_t:
         if (self.getFlag(FLAGS6502.Z) == 1):
-            self.cycles+=uint8_t(1)
-            self.addr_abs = uint16_t(uint16_t(self.pc) + uint16_t(self.addr_rel))
+            self.cycles+=1
+            self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
             if ((self.addr_abs & 0xFF00) != (self.pc & 0xFF00)):
-                self.cycles+=uint8_t(1)
+                self.cycles+=1
 
             self.pc = self.addr_abs
         return 0
@@ -753,11 +754,11 @@ class Py6502:
     # Function:    if(N == 1) pc = address
     def BMI(self) -> uint8_t:
         if (self.getFlag(FLAGS6502.N) == 1):
-            self.cycles+=uint8_t(1)
-            self.addr_abs = uint16_t(uint16_t(self.pc) + uint16_t(self.addr_rel))
+            self.cycles+=1
+            self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
             if ((self.addr_abs & 0xFF00) != (self.pc & 0xFF00)):
-                self.cycles+=uint8_t(1)
+                self.cycles+=1
 
             self.pc = self.addr_abs
         return 0
@@ -767,13 +768,13 @@ class Py6502:
     # Function:    if(Z == 0) pc = address
     def BNE(self) -> uint8_t:
         if (self.getFlag(FLAGS6502.Z) == 0):
-            self.cycles+=uint8_t(1)
+            self.cycles+=1
             if VERBOSE_DEBUG:
-                print("BNE: jumping from %x to %x (addr_rel = %x)" % (uint16_t(self.pc), uint16_t(uint16_t(self.pc) + uint16_t(self.addr_rel)), uint16_t(self.addr_rel)))
-            self.addr_abs = uint16_t(uint16_t(self.pc) + uint16_t(self.addr_rel))
+                print("BNE: jumping from %x to %x (addr_rel = %x)" % ((self.pc + self.addr_rel) & 0xffff, self.addr_rel))
+            self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
             if ((self.addr_abs & 0xFF00) != (self.pc & 0xFF00)):
-                self.cycles+=uint8_t(1)
+                self.cycles+=1
 
             self.pc = self.addr_abs
         return 0
@@ -783,11 +784,11 @@ class Py6502:
     # Function:    if(N == 0) pc = address
     def BPL(self) -> uint8_t:
         if (self.getFlag(FLAGS6502.N) == 0):
-            self.cycles+=uint8_t(1)
-            self.addr_abs = uint16_t(uint16_t(self.pc) + uint16_t(self.addr_rel))
+            self.cycles+=1
+            self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
             if ((self.addr_abs & 0xFF00) != (self.pc & 0xFF00)):
-                self.cycles+=uint8_t(1)
+                self.cycles+=1
 
             self.pc = self.addr_abs
         return 0
@@ -795,17 +796,17 @@ class Py6502:
     # Instruction: Break
     # Function:    Program Sourced Interrupt
     def BRK(self) -> uint8_t:
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = self.pc + uint16_t(1)
 
         self.setFlag(FLAGS6502.I, True)
         self.write(0x0100 + self.stkp, (self.pc >> 8) & 0x00FF)
-        self.stkp-=uint8_t(1)
+        self.stkp-=1
         self.write(0x0100 + self.stkp, self.pc & 0x00FF)
-        self.stkp-=uint8_t(1)
+        self.stkp-=1
 
         self.setFlag(FLAGS6502.B, True)
         self.write(0x0100 + self.stkp, self.status)
-        self.stkp-=uint8_t(1)
+        self.stkp-=1
         self.setFlag(FLAGS6502.B, False)
 
         self.pc = self.read(0xFFFE) | (self.read(0xFFFF) << 8)
@@ -816,11 +817,11 @@ class Py6502:
     # Function:    if(V == 0) pc = address
     def BVC(self) -> uint8_t:
         if (self.getFlag(FLAGS6502.V) == 0):
-            self.cycles+=uint8_t(1)
-            self.addr_abs = uint16_t(uint16_t(self.pc) + uint16_t(self.addr_rel))
+            self.cycles+=1
+            self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
             if ((self.addr_abs & 0xFF00) != (self.pc & 0xFF00)):
-                self.cycles+=uint8_t(1)
+                self.cycles+=1
 
             self.pc = self.addr_abs
         return 0
@@ -830,11 +831,11 @@ class Py6502:
     # Function:    if(V == 1) pc = address
     def BVS(self) -> uint8_t:
         if (self.getFlag(FLAGS6502.V) == 1):
-            self.cycles+=uint8_t(1)
-            self.addr_abs = uint16_t(uint16_t(self.pc) + uint16_t(self.addr_rel))
+            self.cycles+=1
+            self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
             if ((self.addr_abs & 0xFF00) != (self.pc & 0xFF00)):
-                self.cycles+=uint8_t(1)
+                self.cycles+=1
 
             self.pc = self.addr_abs
         return 0
@@ -919,7 +920,7 @@ class Py6502:
     # Function:    X = X - 1
     # Flags Out:   N, Z
     def DEX(self) -> uint8_t:
-        self.x-=uint8_t(1)
+        self.x-=1
         self.setFlag(FLAGS6502.Z, self.x == 0x00)
         self.setFlag(FLAGS6502.N, self.x & 0x80)
         return 0
@@ -929,7 +930,7 @@ class Py6502:
     # Function:    Y = Y - 1
     # Flags Out:   N, Z
     def DEY(self) -> uint8_t:
-        self.y-=uint8_t(1)
+        self.y-=1
         self.setFlag(FLAGS6502.Z, self.y == 0x00)
         self.setFlag(FLAGS6502.N, self.y & 0x80)
         return 0
@@ -962,7 +963,7 @@ class Py6502:
     # Function:    X = X + 1
     # Flags Out:   N, Z
     def INX(self) -> uint8_t:
-        self.x+=uint8_t(1)
+        self.x+=1
         self.setFlag(FLAGS6502.Z, self.x == 0x00)
         self.setFlag(FLAGS6502.N, self.x & 0x80)
         return 0
@@ -972,7 +973,7 @@ class Py6502:
     # Function:    Y = Y + 1
     # Flags Out:   N, Z
     def INY(self) -> uint8_t:
-        self.y+=uint8_t(1)
+        self.y+=1
         self.setFlag(FLAGS6502.Z, self.y == 0x00)
         self.setFlag(FLAGS6502.N, self.y & 0x80)
         return 0
@@ -988,12 +989,12 @@ class Py6502:
     # Instruction: Jump To Sub-Routine
     # Function:    Push current pc to stack, pc = address
     def JSR(self) -> uint8_t:
-        self.pc-=uint8_t(1)
+        self.pc-=1
 
         self.write(0x0100 + self.stkp, (self.pc >> 8) & 0x00FF)
-        self.stkp-=uint8_t(1)
+        self.stkp-=1
         self.write(0x0100 + self.stkp, self.pc & 0x00FF)
-        self.stkp-=uint8_t(1)
+        self.stkp-=1
 
         self.pc = self.addr_abs
         return 0
@@ -1082,7 +1083,7 @@ class Py6502:
     # Function:    A -> stack
     def PHA(self) -> uint8_t:
         self.write(0x0100 + self.stkp, self.a)
-        self.stkp-=uint8_t(1)
+        self.stkp-=1
         return 0
 
 
@@ -1093,7 +1094,7 @@ class Py6502:
         self.write(0x0100 + self.stkp, self.status | FLAGS6502.B | FLAGS6502.U)
         self.setFlag(FLAGS6502.B, False)
         self.setFlag(FLAGS6502.U, False)
-        self.stkp-=uint8_t(1)
+        self.stkp-=1
         return 0
 
 
@@ -1101,7 +1102,7 @@ class Py6502:
     # Function:    A <- stack
     # Flags Out:   N, Z
     def PLA(self) -> uint8_t:
-        self.stkp+=uint8_t(1)
+        self.stkp+=1
         self.a = self.read(0x0100 + self.stkp)
         self.setFlag(FLAGS6502.Z, self.a == 0x00)
         self.setFlag(FLAGS6502.N, self.a & 0x80)
@@ -1111,7 +1112,7 @@ class Py6502:
     # Instruction: Pop Status Register off Stack
     # Function:    Status <- stack
     def PLP(self) -> uint8_t:
-        self.stkp+=uint8_t(1)
+        self.stkp+=1
         self.status = self.read(0x0100 + self.stkp)
         self.setFlag(FLAGS6502.U, True)
         return 0
@@ -1123,7 +1124,7 @@ class Py6502:
         self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x0000)
         self.setFlag(FLAGS6502.N, self.temp & 0x0080)
         if (self.lookup[self.opcode].addrmode == self.IMP):
-            self.a = uint8_t(self.temp & 0x00FF)
+            self.a = self.temp & 0x00FF
         else:
             self.write(self.addr_abs, self.temp & 0x00FF)
         return 0
@@ -1135,30 +1136,30 @@ class Py6502:
         self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x00)
         self.setFlag(FLAGS6502.N, self.temp & 0x0080)
         if (self.lookup[self.opcode].addrmode == self.IMP):
-            self.a = uint8_t(self.temp & 0x00FF)
+            self.a = self.temp & 0x00FF
         else:
             self.write(self.addr_abs, self.temp & 0x00FF)
         return 0
 
     def RTI(self) -> uint8_t:
-        self.stkp+=uint8_t(1)
+        self.stkp+=1
         self.status = self.read(0x0100 + self.stkp)
         self.status &= ~FLAGS6502.B
         self.status &= ~FLAGS6502.U
 
-        self.stkp+=uint8_t(1)
+        self.stkp+=1
         self.pc = self.read(0x0100 + self.stkp)
-        self.stkp+=uint8_t(1)
+        self.stkp+=1
         self.pc |= self.read(0x0100 + self.stkp) << 8
         return 0
 
     def RTS(self) -> uint8_t:
-        self.stkp+=uint8_t(1)
+        self.stkp+=1
         self.pc = self.read(0x0100 + self.stkp)
-        self.stkp+=uint8_t(1)
+        self.stkp+=1
         self.pc |= self.read(0x0100 + self.stkp) << 8
 
-        self.pc = uint16_t(self.pc + uint16_t(1))
+        self.pc = (self.pc + 1) & 0xffff
         return 0
 
 
@@ -1385,8 +1386,8 @@ class Py6502:
         return mapLines
 
 class Mapper(ABC):
-    nPRGBanks: uint8_t = uint8_t(0)
-    nCHRBanks: uint8_t = uint8_t(0)
+    nPRGBanks: uint8_t = 0
+    nCHRBanks: uint8_t = 0
 
     def __init__(self, nPRGBanks, nCHRBanks):
         self.nPRGBanks = nPRGBanks
@@ -1421,17 +1422,17 @@ class Mapper_000(Mapper):
         #     CPU Address Bus          PRG ROM
         #     0x8000 -> 0xFFFF: Map    0x0000 -> 0x7FFF
         if (addr >= 0x8000 and addr <= 0xFFFF):
-            mapped_addr = uint32_t(addr & (0x7FFF if self.nPRGBanks > 1 else 0x3FFF))
+            mapped_addr = addr & (0x7FFF if self.nPRGBanks > 1 else 0x3FFF)
             return (True, mapped_addr)
 
-        return (False, uint32_t(0))
+        return (False, 0)
 
     def cpuMapWrite(self, addr: uint16_t) -> Tuple[bool, uint32_t]:
         if (addr >= 0x8000 and addr <= 0xFFFF):
-            mapped_addr = uint32_t(addr & (0x7FFF if self.nPRGBanks > 1 else 0x3FFF))
+            mapped_addr = addr & (0x7FFF if self.nPRGBanks > 1 else 0x3FFF)
             return (True, mapped_addr)
 
-        return (False, uint32_t(0))
+        return (False, 0)
 
     def ppuMapRead(self, addr: uint16_t) -> Tuple[bool, uint32_t]:
         # There is no mapping required for PPU
@@ -1441,16 +1442,16 @@ class Mapper_000(Mapper):
             mapped_addr = uint32_t(addr)
             return (True, mapped_addr)
 
-        return (False, uint32_t(0))
+        return (False, 0)
 
     def ppuMapWrite(self, addr: uint16_t) -> Tuple[bool, uint32_t]:
         if (addr >= 0x0000 and addr <= 0x1FFF):
             if (self.nCHRBanks == 0):
                 # Treat as RAM
-                mapped_addr = uint32_t(addr)
+                mapped_addr = addr
                 return (True, mapped_addr)
 
-        return (False, uint32_t(0))
+        return (False, 0)
 
 # iNES Format Header
 @dataclass
@@ -1525,7 +1526,7 @@ class Cartridge:
             self.mirror = MIRROR.VERTICAL if (header.mapper1 & 0x01) else MIRROR.HORIZONTAL
 
             # "Discover" File Format
-            self.nFileType = uint8_t(1)
+            self.nFileType = 1
 
             if (self.nFileType == 0):
                 pass
@@ -1598,9 +1599,9 @@ class Py2C02:
     cycle: int16_t
 
     def __init__(self):
-        self.tblName = [[uint8_t(0)] * 1024] * 2
-        self.tblPattern = [[uint8_t(0)] * 4096] * 2
-        self.tblPalette = [uint8_t(0)] * 32
+        self.tblName = [[0] * 1024] * 2
+        self.tblPattern = [[0] * 4096] * 2
+        self.tblPalette = [0] * 32
         palScreen = [None] * 0x40
         palScreen[0x00] = olc.Pixel(84, 84, 84)
         palScreen[0x01] = olc.Pixel(0, 30, 116)
@@ -1705,7 +1706,7 @@ class Py2C02:
                 self.frame_complete = True
 
     def cpuRead(self, addr: uint16_t, rdonly: Optional[bool] = False) -> uint8_t:
-        data: uint8_t = uint8_t(0x00)
+        data: uint8_t = 0x00
 
         match (addr):
             case 0x0000: # Control
@@ -1747,8 +1748,8 @@ class Py2C02:
                 pass
 
     def ppuRead(self, addr: uint16_t, rdonly: Optional[bool] = False) -> uint8_t:
-        data: uint8_t = uint8_t(0x00)
-        addr &= uint16_t(0x3FFF)
+        data: uint8_t = 0x00
+        addr &= 0x3FFF
 
         res, data = self.cart.ppuRead(addr, data)
 
@@ -1758,7 +1759,7 @@ class Py2C02:
         return data
 
     def ppuWrite(self, addr: uint16_t, data: uint8_t) -> None:
-        addr &= uint16_t(0x3FFF)
+        addr &= 0x3FFF
 
         if (self.cart.ppuWrite(addr, data)):
             pass
@@ -1774,12 +1775,12 @@ class Bus:
         self.cpu = Py6502()
         self.ppu = Py2C02()
         self.cpu.connectBus(self)
-        self.cpuRam = [uint8_t(0)] * (2 * 1024)
+        self.cpuRam = [0] * (2 * 1024)
 
     def cpuWrite(self, addr: uint16_t, data: uint8_t) -> None:
         res = False
         if self.cart:
-            res, cartData = self.cart.cpuWrite(addr, data)
+            res = self.cart.cpuWrite(addr, data)
 
         if (res):
             # The cartridge "sees all" and has the facility to veto
@@ -1804,7 +1805,7 @@ class Bus:
             self.ppu.cpuWrite(addr & 0x0007, data)
 
     def cpuRead(self, addr: uint16_t, bReadOnly: Optional[bool] = False) -> uint8_t:
-        data: uint8_t = uint8_t(0)
+        data: uint8_t = 0
         res = False
         if self.cart:
             res, cartData = self.cart.cpuRead(addr, data)
@@ -1814,7 +1815,7 @@ class Bus:
             data = cartData
         elif (addr >= 0x0000 and addr < 0x1FFF):
             # System RAM Address Range, mirrored every 2048
-            data = uint8_t(self.cpuRam[addr & 0x07FF])
+            data = self.cpuRam[addr & 0x07FF]
         elif (addr >= 0x2000 and addr < 0x3FFF):
             # PPU Address range, mirrored every 8
             data = self.ppu.cpuRead(addr & 0x0007, bReadOnly)
@@ -1827,7 +1828,7 @@ class Bus:
 
     def reset(self) -> None:
         self.cpu.reset()
-        self.nSystemClockCounter = uint32_t(0)
+        self.nSystemClockCounter = 0
 
     def clock(self) -> None:
         # Clocking. The heart and soul of an emulator. The running
@@ -1847,4 +1848,4 @@ class Bus:
         if (self.nSystemClockCounter % 3 == 0):
             self.cpu.clock()
 
-        self.nSystemClockCounter+=uint32_t(1)
+        self.nSystemClockCounter+=1
