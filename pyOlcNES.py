@@ -54,12 +54,17 @@ class FLAGS6502(IntEnum):
     V = (1 << 6) # Overflow
     N = (1 << 7) # Negative
 
-@dataclass
 class INSTRUCTION:
     name: str
     operate: Callable
     addrmode: Callable
     cycles: uint8_t
+
+    def __init__(self, name, operate, addrmode, cycles):
+        self.name = name
+        self.operate = operate
+        self.addrmode = addrmode
+        self.cycles = cycles
 
 class Py6502:
     flags: FLAGS6502
@@ -772,8 +777,6 @@ class Py6502:
     def BNE(self) -> uint8_t:
         if (self.getFlag(FLAGS6502.Z) == 0):
             self.cycles+=1
-            if VERBOSE_DEBUG:
-                print("BNE: jumping from %x to %x (addr_rel = %x)" % ((self.pc + self.addr_rel) & 0xffff, self.addr_rel))
             self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
             if ((self.addr_abs & 0xFF00) != (self.pc & 0xFF00)):
@@ -1446,7 +1449,6 @@ class Mapper_000(Mapper):
         return (False, 0)
 
 # iNES Format Header
-@dataclass
 class sHeader:
     name: bytes
     prg_rom_chunks: uint8_t
@@ -1457,6 +1459,17 @@ class sHeader:
     tv_system1: uint8_t
     tv_system2: uint8_t
     unused: bytes
+
+    def __init__(self, name, prg_rom_chunks, chr_rom_chunks, mapper1, mapper2, prg_ram_size, tv_system1, tv_system2, unused):
+        self.name = name
+        self.prg_rom_chunks = prg_rom_chunks
+        self.chr_rom_chunks = chr_rom_chunks
+        self.mapper1 = mapper1
+        self.mapper2 = mapper2
+        self.prg_ram_size = prg_ram_size
+        self.tv_system1 = tv_system1
+        self.tv_system2 = tv_system2
+        self.unused = unused
 
     @classmethod
     def unpack(self, fd):
