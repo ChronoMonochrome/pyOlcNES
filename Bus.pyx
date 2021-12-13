@@ -9,6 +9,10 @@ from libc.string cimport memset
 
 uint32_t = uint16_t = uint8_t = int
 
+cdef struct ret_result:
+    unsigned int res
+    unsigned int data
+
 cdef class Bus:
     cdef public object cpu
     cdef public object ppu
@@ -55,8 +59,12 @@ cdef class Bus:
     cpdef public unsigned char cpuRead(self, unsigned int addr, unsigned char bReadOnly):
         cdef unsigned char data = 0
         cdef unsigned char res = 0
+        cartData = 0 
+        cdef ret_result ret
         if self.cart:
-            res, cartData = self.cart.cpuRead(addr, data)
+            ret = self.cart.cpuRead(addr, data)
+            res = ret.res
+            cartData = ret.data
 
         if (res):
             # Cartridge Address Range

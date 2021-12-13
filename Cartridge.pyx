@@ -1,3 +1,7 @@
+# distutils: language = c++
+# cython: language_level=3
+# cython: profile=True
+
 import io
 
 from typing import *
@@ -43,30 +47,37 @@ class sHeader:
         unused = header.read(5)
         return sHeader(name, prg_rom_chunks, chr_rom_chunks, mapper1, mapper2, prg_ram_size, tv_system1, tv_system2, unused)
 
-class MIRROR(IntEnum):
-    HORIZONTAL = auto()
-    VERTICAL = auto()
-    ONESCREEN_LO = auto()
-    ONESCREEN_HI = auto()
 
-class Cartridge:
-    bImageValid: bool
+ctypedef public enum MIRROR:
+    M_HORIZONTAL = 0,
+    M_VERTICAL,
+    M_ONESCREEN_LO,
+    M_ONESCREEN_HI,
+    
+cdef struct ret_result:
+    unsigned int res
+    unsigned int data 
 
-    nMapperID: uint8_t
-    nPRGBanks: uint8_t
-    nCHRBanks: uint8_t
+cdef class Cartridge:
+    cdef public unsigned int bImageValid
 
-    vPRGMemory: bytes
-    vCHRMemory: bytes
+    cdef public unsigned int nMapperID
+    cdef public unsigned int nPRGBanks
+    cdef public unsigned int nCHRBanks
 
-    pMapper: Mapper
-    mirror: MIRROR = MIRROR.HORIZONTAL
+    cdef public bytes vPRGMemory
+    cdef public bytes vCHRMemory
+
+    cdef public object pMapper
+    cdef public unsigned int mirror
+    cdef public unsigned int nFileType
 
     def __init__(self, sFileName):
         self.bImageValid = False
         self.nMapperID = 0
         self.nPRGBanks = 0
         self.nCHRBanks = 0
+        self.mirror = M_HORIZONTAL
 
         fd = None
         try:
@@ -85,7 +96,7 @@ class Cartridge:
 
             # Determine Mapper ID
             self.nMapperID = uint8_t(((header.mapper2 >> 4) << 4) | (header.mapper1 >> 4))
-            self.mirror = MIRROR.VERTICAL if (header.mapper1 & 0x01) else MIRROR.HORIZONTAL
+            self.mirror = M_VERTICAL if (header.mapper1 & 0x01) else M_HORIZONTAL
 
             # "Discover" File Format
             self.nFileType = 1
@@ -115,12 +126,16 @@ class Cartridge:
     def imageValid(self) -> bool:
         return self.bImageValid
 
-    def cpuRead(self, addr: uint16_t, data: uint8_t) -> Tuple[bool, bytes]:
+    cpdef public ret_result cpuRead(self, unsigned int addr, unsigned int data):
+        cdef ret_result ret
         res, mapped_addr = self.pMapper.cpuMapRead(addr)
-        if (res):
-            return (True, self.vPRGMemory[mapped_addr])
+        ret.res = res
+        if (res > 0):
+            ret.data = self.vPRGMemory[mapped_addr]
         else:
-            return (False, bytes())
+            ret.data = 0
+        
+        return ret
 
     def cpuWrite(self, addr: uint16_t, data: uint8_t) -> bool:
         res, mapped_addr = self.pMapper.cpuMapWrite(addr)

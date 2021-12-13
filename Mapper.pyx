@@ -1,3 +1,7 @@
+# distutils: language = c++
+# cython: language_level=3
+# cython: profile=True
+
 from typing import *
 
 from abc import ABC, abstractmethod
