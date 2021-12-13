@@ -53,10 +53,10 @@ ctypedef public enum MIRROR:
     M_VERTICAL,
     M_ONESCREEN_LO,
     M_ONESCREEN_HI,
-    
+
 cdef struct ret_result:
     unsigned int res
-    unsigned int data 
+    unsigned int data
 
 cdef class Cartridge:
     cdef public unsigned int bImageValid
@@ -128,13 +128,14 @@ cdef class Cartridge:
 
     cpdef public ret_result cpuRead(self, unsigned int addr, unsigned int data):
         cdef ret_result ret
-        res, mapped_addr = self.pMapper.cpuMapRead(addr)
-        ret.res = res
-        if (res > 0):
-            ret.data = self.vPRGMemory[mapped_addr]
+
+        ret = self.pMapper.cpuMapRead(addr)
+
+        if (ret.res > 0):
+            ret.data = self.vPRGMemory[ret.data]
         else:
             ret.data = 0
-        
+
         return ret
 
     def cpuWrite(self, addr: uint16_t, data: uint8_t) -> bool:

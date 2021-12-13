@@ -59,7 +59,7 @@ cdef class Bus:
     cpdef public unsigned char cpuRead(self, unsigned int addr, unsigned char bReadOnly):
         cdef unsigned char data = 0
         cdef unsigned char res = 0
-        cartData = 0
+        cdef unsigned char cartData = 0
         cdef ret_result ret
         if self.cart:
             ret = self.cart.cpuRead(addr, data)
