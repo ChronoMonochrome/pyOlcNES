@@ -231,11 +231,14 @@ cdef class Py6502:
         # Decrement the number of cycles remaining for this instruction
         self.cycles-=1
 
-    def clock_instruction(self) -> None:
+    cpdef public unsigned int clock_instruction(self):
+        cdef unsigned int cycles = 0
         while True:
             self.clock()
+            cycles += 1
             if self.complete():
                 break
+        return cycles
 
     # Convenience functions to access status register
     def getFlag(self, f: FLAGS6502) -> uint8_t:

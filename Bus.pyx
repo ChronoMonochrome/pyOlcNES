@@ -76,7 +76,7 @@ cdef class Bus:
     def reset(self) -> None:
         self.cpu.reset()
         self.nSystemClockCounter = 0
-		
+        
 
 from random import shuffle   
 scanline_contents = [0x30] * (261 * 341 // 2)  + [0x3F] * (261 * 341 // 2)
@@ -95,7 +95,7 @@ cpdef public void emulate_frame(object bus):
     # Advance renderer - it never stops, it's relentless
     cdef unsigned int scanline = 0
     cdef unsigned int cycle = 0
-    cdef unsigned int clocks_consumed = 0
+    cdef unsigned int cpu_cycles = 0
     
     #shuffle(scanline_contents)
     for scanline in range(0, 262):
@@ -104,8 +104,11 @@ cpdef public void emulate_frame(object bus):
         for cycle in range(0, 342):
             #bus.ppu.cycle = cycle
             #bus.ppu.sprScreen.SetPixel(cycle, scanline, bus.ppu.palScreen[scanline_contents[(scanline * 341 + cycle) % 89000]])
-            if (cycle % 3 == 0):
-                bus.cpu.clock()
+            if (cpu_cycles == 0):
+                cpu_cycles = bus.cpu.clock_instruction()
+
+            if (cycle // cpu_cycles == 3):
+                cpu_cycles = bus.cpu.clock_instruction()
             #bus.nSystemClockCounter+=1
     bus.ppu.scanline = -1
     bus.ppu.frame_complete = True
