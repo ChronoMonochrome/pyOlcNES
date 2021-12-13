@@ -76,3 +76,36 @@ cdef class Bus:
     def reset(self) -> None:
         self.cpu.reset()
         self.nSystemClockCounter = 0
+		
+
+from random import shuffle   
+scanline_contents = [0x30] * (261 * 341 // 2)  + [0x3F] * (261 * 341 // 2)
+    
+cpdef public void emulate_frame(object bus):
+    # Clocking. The heart and soul of an emulator. The running
+    # frequency is controlled by whatever calls this function.
+    # So here we "divide" the clock as necessary and call
+    # the peripheral devices clock() function at the correct
+    # times.
+
+    # The fastest clock frequency the digital system cares
+    # about is equivalent to the PPU clock. So the PPU is clocked
+    # each time this function is called.
+
+    # Advance renderer - it never stops, it's relentless
+    cdef unsigned int scanline = 0
+    cdef unsigned int cycle = 0
+    cdef unsigned int clocks_consumed = 0
+    
+    #shuffle(scanline_contents)
+    for scanline in range(0, 262):
+        #bus.ppu.scanline = scanline
+        #bus.ppu.cycle = 0
+        for cycle in range(0, 342):
+            #bus.ppu.cycle = cycle
+            #bus.ppu.sprScreen.SetPixel(cycle, scanline, bus.ppu.palScreen[scanline_contents[(scanline * 341 + cycle) % 89000]])
+            if (cycle % 3 == 0):
+                bus.cpu.clock()
+            #bus.nSystemClockCounter+=1
+    bus.ppu.scanline = -1
+    bus.ppu.frame_complete = True

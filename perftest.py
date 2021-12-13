@@ -13,7 +13,7 @@ mapAsm = nes.cpu.disassemble(0x0000, 0x1FFF)
 nes.reset()
 
 frameCount = 0
-frameMaxCount = 10
+frameMaxCount = 30
 while True:
     try:
         t1 = time.time()
