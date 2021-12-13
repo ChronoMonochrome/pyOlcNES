@@ -13,16 +13,18 @@ mapAsm = nes.cpu.disassemble(0x0000, 0x1FFF)
 nes.reset()
 
 frameCount = 0
-frameMaxCount = 30
+frameMaxCount = 300
+
+t0 = time.time()
 while True:
     try:
         t1 = time.time()
         emulate_frame(nes)
         nes.ppu.frame_complete = False
-        print("frameCount=%d, dt=%f" % (frameCount, time.time() - t1))
         frameCount += 1
     except KeyboardInterrupt:
         exit()
-        
     if frameCount > frameMaxCount:
-        exit()
+        break
+
+print(time.time()-t0)
