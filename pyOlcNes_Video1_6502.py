@@ -141,11 +141,13 @@ class Demo_olc6502(olc.PixelGameEngine):
         # HACK: jump to the program manually
         self.nes.cpu.pc = offset
         self.nes.cpu.cycles = 8
+        
+        program = []
 
         for c in ss.split(" "):
-            self.nes.cpuRam[offset] = eval("0x"+c)
-            offset += 1
+            program.append(eval("0x"+c))
 
+        self.nes.loadToRam(program, offset)
 
         #self.nes.ram[0xFFFC] = 0x00
         #self.nes.ram[0xFFFD] = 0x80

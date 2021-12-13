@@ -17,8 +17,8 @@ cdef class Bus:
     cdef public object cpu
     cdef public object ppu
     cdef public object cart
-    #cdef public unsigned char cpuRam[2048]
-    cdef public object cpuRam
+    cdef public unsigned char cpuRam[2048]
+    #cdef public object cpuRam
     cdef public unsigned int nSystemClockCounter
 
     def __init__(self):
@@ -26,8 +26,8 @@ cdef class Bus:
         self.ppu = Py2C02()
         self.cpu.connectBus(self)
         self.cart = None
-        self.cpuRam = [0] * 2048
-        #memset(self.cpuRam, 0, 2048)
+        #self.cpuRam = [0] * 2048
+        memset(self.cpuRam, 0, 2048)
 
     cpdef public void cpuWrite(self, unsigned int addr, unsigned char data):
         res = False
@@ -59,7 +59,7 @@ cdef class Bus:
     cpdef public unsigned char cpuRead(self, unsigned int addr, unsigned char bReadOnly):
         cdef unsigned char data = 0
         cdef unsigned char res = 0
-        cartData = 0 
+        cartData = 0
         cdef ret_result ret
         if self.cart:
             ret = self.cart.cpuRead(addr, data)
@@ -77,6 +77,11 @@ cdef class Bus:
             data = self.ppu.cpuRead(addr & 0x0007, bReadOnly)
         return data
 
+    def loadToRam(self, program, offset):
+        for byte in program:
+            self.cpuRam[offset] = byte
+            offset += 1
+
     def insertCartridge(self, cartridge: Cartridge) -> None:
         # Connects cartridge to both Main Bus and CPU Bus
         self.cart = cartridge
@@ -85,11 +90,11 @@ cdef class Bus:
     def reset(self) -> None:
         self.cpu.reset()
         self.nSystemClockCounter = 0
-        
 
-from random import shuffle   
+
+from random import shuffle
 scanline_contents = [0x30] * (261 * 341 // 2)  + [0x3F] * (261 * 341 // 2)
-    
+
 cpdef public void emulate_frame(object bus):
     # Clocking. The heart and soul of an emulator. The running
     # frequency is controlled by whatever calls this function.
@@ -105,7 +110,7 @@ cpdef public void emulate_frame(object bus):
     cdef unsigned int scanline = 0
     cdef unsigned int cycle = 0
     cdef unsigned int cpu_cycles = 0
-    
+
     #shuffle(scanline_contents)
     for scanline in range(0, 262):
         #bus.ppu.scanline = scanline
