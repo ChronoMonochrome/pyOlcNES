@@ -31,10 +31,20 @@
 uint32_t = uint16_t = uint8_t = int
 
 from typing import *
-from pyOlcNES import FLAGS6502
 from lookup import get_lookup_table
 
 lookup = []
+
+
+ctypedef public enum FLAGS6502:
+    FLAGS6502_C = (1 << 0), # Carry bit
+    FLAGS6502_Z = (1 << 1), # Zero
+    FLAGS6502_I = (1 << 2), # Disable Interrupts
+    FLAGS6502_D = (1 << 3), # Decimal mode
+    FLAGS6502_B = (1 << 4), # Break
+    FLAGS6502_U = (1 << 5), # Unused
+    FLAGS6502_V = (1 << 6), # Overflow
+    FLAGS6502_N = (1 << 7) # Negative
 
 cdef class Py6502:
     # CPU Core registers, exposed as public here for ease of access from external
@@ -110,7 +120,7 @@ cdef class Py6502:
         self.x = 0
         self.y = 0
         self.stkp = uint8_t(0xFD)
-        self.status = uint8_t(0x00 | FLAGS6502.U)
+        self.status = uint8_t(0x00 | FLAGS6502_U)
 
         # Clear internal helper variables
         self.addr_rel = uint16_t(0x0000)
@@ -136,7 +146,7 @@ cdef class Py6502:
     # set to the program counter.
     def irq(self) -> None:
         # If interrupts are allowed
-        if (self.getFlag(FLAGS6502.I) == 0):
+        if (self.getFlag(FLAGS6502_I) == 0):
             # Push the program counter to the stack. It's 16-bits dont
             # forget so that takes two pushes
             self.write(0x0100 + self.stkp, (self.pc >> 8) & 0x00FF)
@@ -145,9 +155,9 @@ cdef class Py6502:
             self.stkp-=1
 
             # Then Push the status register to the stack
-            self.setFlag(FLAGS6502.B, False)
-            self.setFlag(FLAGS6502.U, True)
-            self.setFlag(FLAGS6502.I, True)
+            self.setFlag(FLAGS6502_B, False)
+            self.setFlag(FLAGS6502_U, True)
+            self.setFlag(FLAGS6502_I, True)
             self.write(0x0100 + self.stkp, self.status)
             self.stkp-=1
 
@@ -170,9 +180,9 @@ cdef class Py6502:
         self.write(0x0100 + self.stkp, self.pc & 0x00FF)
         self.stkp-=1
 
-        self.setFlag(FLAGS6502.B, False)
-        self.setFlag(FLAGS6502.U, True)
-        self.setFlag(FLAGS6502.I, True)
+        self.setFlag(FLAGS6502_B, False)
+        self.setFlag(FLAGS6502_U, True)
+        self.setFlag(FLAGS6502_I, True)
         self.write(0x0100 + self.stkp, self.status)
         self.stkp-=1
 
@@ -202,7 +212,7 @@ cdef class Py6502:
             self.opcode = self.read(self.pc)
 
             # Always set the unused status flag bit to 1
-            #self.setFlag(FLAGS6502.U, True)
+            #self.setFlag(FLAGS6502_U, True)
 
             # Increment program counter, we read the opcode byte
             self.pc = (self.pc + 1) & 0xffff
@@ -222,7 +232,7 @@ cdef class Py6502:
             self.cycles += (additional_cycle1 & additional_cycle2)
 
             # Always set the unused status flag bit to 1
-            #self.setFlag(FLAGS6502.U, True)
+            #self.setFlag(FLAGS6502_U, True)
 
         # Increment global clock count - This is actually unused unless logging is enabled
         # but I've kept it in because its a handy watch variable for debugging
@@ -241,10 +251,10 @@ cdef class Py6502:
         return cycles
 
     # Convenience functions to access status register
-    def getFlag(self, f: FLAGS6502) -> uint8_t:
+    cpdef public unsigned int getFlag(self, unsigned int f):
         return 1 if ((self.status & f) > 0) else 0
 
-    def setFlag(self, f: FLAGS6502, v: bool) -> None:
+    cpdef public void setFlag(self, unsigned int f, unsigned int v):
         if (v):
             self.status |= uint8_t(f)
         else:
@@ -507,19 +517,19 @@ cdef class Py6502:
 
         # Add is performed in 16-bit domain for emulation to capture any
         # carry bit, which will exist in bit 8 of the 16-bit word
-        self.temp = uint16_t(self.a) + uint16_t(self.fetched) + uint16_t(self.getFlag(FLAGS6502.C))
+        self.temp = uint16_t(self.a) + uint16_t(self.fetched) + uint16_t(self.getFlag(FLAGS6502_C))
 
         # The carry flag out exists in the high byte bit 0
-        self.setFlag(FLAGS6502.C, self.temp > 255)
+        self.setFlag(FLAGS6502_C, self.temp > 255)
 
         # The Zero flag is set if the result is 0
-        self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0)
+        self.setFlag(FLAGS6502_Z, (self.temp & 0x00FF) == 0)
 
         # The signed Overflow flag is set based on all that up there! :D
-        self.setFlag(FLAGS6502.V, (~(uint16_t(self.a) ^ uint16_t(self.fetched)) & (uint16_t(self.a) ^ uint16_t(self.temp))) & uint16_t(0x0080))
+        self.setFlag(FLAGS6502_V, (~(uint16_t(self.a) ^ uint16_t(self.fetched)) & (uint16_t(self.a) ^ uint16_t(self.temp))) & uint16_t(0x0080))
 
         # The negative flag is set to the most significant bit of the result
-        self.setFlag(FLAGS6502.N, self.temp & 0x80)
+        self.setFlag(FLAGS6502_N, self.temp & 0x80)
 
         # Load the result into the accumulator (it's 8-bit dont forget!)
         self.a = uint8_t(self.temp & 0x00FF)
@@ -563,11 +573,11 @@ cdef class Py6502:
         value: uint16_t = (self.fetched) ^ 0x00FF
 
         # Notice this is exactly the same as addition from here!
-        self.temp = uint16_t(self.a) + uint16_t(self.fetched) + uint16_t(self.getFlag(FLAGS6502.C))
-        self.setFlag(FLAGS6502.C, self.temp & 0xFF00)
-        self.setFlag(FLAGS6502.Z, ((self.temp & 0x00FF) == 0))
-        self.setFlag(FLAGS6502.V, (self.temp ^ self.a) & (self.temp ^ value) & 0x0080)
-        self.setFlag(FLAGS6502.N, self.temp & 0x0080)
+        self.temp = uint16_t(self.a) + uint16_t(self.fetched) + uint16_t(self.getFlag(FLAGS6502_C))
+        self.setFlag(FLAGS6502_C, self.temp & 0xFF00)
+        self.setFlag(FLAGS6502_Z, ((self.temp & 0x00FF) == 0))
+        self.setFlag(FLAGS6502_V, (self.temp ^ self.a) & (self.temp ^ value) & 0x0080)
+        self.setFlag(FLAGS6502_N, self.temp & 0x0080)
         self.a = uint8_t(self.temp & 0x00FF)
         return 1
 
@@ -587,8 +597,8 @@ cdef class Py6502:
     def AND(self) -> uint8_t:
         self.fetch()
         self.a = self.a & self.fetched
-        self.setFlag(FLAGS6502.Z, self.a == 0x00)
-        self.setFlag(FLAGS6502.N, self.a & 0x80)
+        self.setFlag(FLAGS6502_Z, self.a == 0x00)
+        self.setFlag(FLAGS6502_N, self.a & 0x80)
         return 1
 
 
@@ -598,9 +608,9 @@ cdef class Py6502:
     def ASL(self) -> uint8_t:
         self.fetch()
         self.temp = self.fetched << 1
-        self.setFlag(FLAGS6502.C, (self.temp & 0xFF00) > 0)
-        self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x00)
-        self.setFlag(FLAGS6502.N, self.temp & 0x80)
+        self.setFlag(FLAGS6502_C, (self.temp & 0xFF00) > 0)
+        self.setFlag(FLAGS6502_Z, (self.temp & 0x00FF) == 0x00)
+        self.setFlag(FLAGS6502_N, self.temp & 0x80)
         if (lookup[self.opcode].addrmode == self.IMP):
             self.a = uint8_t(self.temp & 0x00FF)
         else:
@@ -611,7 +621,7 @@ cdef class Py6502:
     # Instruction: Branch if Carry Clear
     # Function:    if(C == 0) pc = address
     def BCC(self) -> uint8_t:
-        if (self.getFlag(FLAGS6502.C) == 0):
+        if (self.getFlag(FLAGS6502_C) == 0):
             self.cycles+=1
             self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
@@ -625,7 +635,7 @@ cdef class Py6502:
     # Instruction: Branch if Carry Set
     # Function:    if(C == 1) pc = address
     def BCS(self) -> uint8_t:
-        if (self.getFlag(FLAGS6502.C) == 1):
+        if (self.getFlag(FLAGS6502_C) == 1):
             self.cycles+=1
             self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
@@ -639,7 +649,7 @@ cdef class Py6502:
     # Instruction: Branch if Equal
     # Function:    if(Z == 1) pc = address
     def BEQ(self) -> uint8_t:
-        if (self.getFlag(FLAGS6502.Z) == 1):
+        if (self.getFlag(FLAGS6502_Z) == 1):
             self.cycles+=1
             self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
@@ -652,16 +662,16 @@ cdef class Py6502:
     def BIT(self) -> uint8_t:
         self.fetch()
         self.temp = self.a & self.fetched
-        self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x00)
-        self.setFlag(FLAGS6502.N, self.fetched & (1 << 7))
-        self.setFlag(FLAGS6502.V, self.fetched & (1 << 6))
+        self.setFlag(FLAGS6502_Z, (self.temp & 0x00FF) == 0x00)
+        self.setFlag(FLAGS6502_N, self.fetched & (1 << 7))
+        self.setFlag(FLAGS6502_V, self.fetched & (1 << 6))
         return 0
 
 
     # Instruction: Branch if Negative
     # Function:    if(N == 1) pc = address
     def BMI(self) -> uint8_t:
-        if (self.getFlag(FLAGS6502.N) == 1):
+        if (self.getFlag(FLAGS6502_N) == 1):
             self.cycles+=1
             self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
@@ -675,7 +685,7 @@ cdef class Py6502:
     # Instruction: Branch if Not Equal
     # Function:    if(Z == 0) pc = address
     def BNE(self) -> uint8_t:
-        if (self.getFlag(FLAGS6502.Z) == 0):
+        if (self.getFlag(FLAGS6502_Z) == 0):
             self.cycles+=1
             self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
@@ -689,7 +699,7 @@ cdef class Py6502:
     # Instruction: Branch if Positive
     # Function:    if(N == 0) pc = address
     def BPL(self) -> uint8_t:
-        if (self.getFlag(FLAGS6502.N) == 0):
+        if (self.getFlag(FLAGS6502_N) == 0):
             self.cycles+=1
             self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
@@ -704,16 +714,16 @@ cdef class Py6502:
     def BRK(self) -> uint8_t:
         self.pc = self.pc + uint16_t(1)
 
-        self.setFlag(FLAGS6502.I, True)
+        self.setFlag(FLAGS6502_I, True)
         self.write(0x0100 + self.stkp, (self.pc >> 8) & 0x00FF)
         self.stkp-=1
         self.write(0x0100 + self.stkp, self.pc & 0x00FF)
         self.stkp-=1
 
-        self.setFlag(FLAGS6502.B, True)
+        self.setFlag(FLAGS6502_B, True)
         self.write(0x0100 + self.stkp, self.status)
         self.stkp-=1
-        self.setFlag(FLAGS6502.B, False)
+        self.setFlag(FLAGS6502_B, False)
 
         self.pc = self.read(0xFFFE) | (self.read(0xFFFF) << 8)
         return 0
@@ -722,7 +732,7 @@ cdef class Py6502:
     # Instruction: Branch if Overflow Clear
     # Function:    if(V == 0) pc = address
     def BVC(self) -> uint8_t:
-        if (self.getFlag(FLAGS6502.V) == 0):
+        if (self.getFlag(FLAGS6502_V) == 0):
             self.cycles+=1
             self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
@@ -736,7 +746,7 @@ cdef class Py6502:
     # Instruction: Branch if Overflow Set
     # Function:    if(V == 1) pc = address
     def BVS(self) -> uint8_t:
-        if (self.getFlag(FLAGS6502.V) == 1):
+        if (self.getFlag(FLAGS6502_V) == 1):
             self.cycles+=1
             self.addr_abs = (self.pc + self.addr_rel) & 0xffff
 
@@ -750,28 +760,28 @@ cdef class Py6502:
     # Instruction: Clear Carry Flag
     # Function:    C = 0
     def CLC(self) -> uint8_t:
-        self.setFlag(FLAGS6502.C, False)
+        self.setFlag(FLAGS6502_C, False)
         return 0
 
 
     # Instruction: Clear Decimal Flag
     # Function:    D = 0
     def CLD(self) -> uint8_t:
-        self.setFlag(FLAGS6502.D, False)
+        self.setFlag(FLAGS6502_D, False)
         return 0
 
 
     # Instruction: Disable Interrupts / Clear Interrupt Flag
     # Function:    I = 0
     def CLI(self) -> uint8_t:
-        self.setFlag(FLAGS6502.I, False)
+        self.setFlag(FLAGS6502_I, False)
         return 0
 
 
     # Instruction: Clear Overflow Flag
     # Function:    V = 0
     def CLV(self) -> uint8_t:
-        self.setFlag(FLAGS6502.V, False)
+        self.setFlag(FLAGS6502_V, False)
         return 0
 
     # Instruction: Compare Accumulator
@@ -780,9 +790,9 @@ cdef class Py6502:
     def CMP(self) -> uint8_t:
         self.fetch()
         self.temp = self.a - self.fetched
-        self.setFlag(FLAGS6502.C, self.a >= self.fetched)
-        self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x0000)
-        self.setFlag(FLAGS6502.N, self.temp & 0x0080)
+        self.setFlag(FLAGS6502_C, self.a >= self.fetched)
+        self.setFlag(FLAGS6502_Z, (self.temp & 0x00FF) == 0x0000)
+        self.setFlag(FLAGS6502_N, self.temp & 0x0080)
         return 1
 
 
@@ -792,9 +802,9 @@ cdef class Py6502:
     def CPX(self) -> uint8_t:
         self.fetch()
         self.temp = self.x - self.fetched
-        self.setFlag(FLAGS6502.C, self.x >= self.fetched)
-        self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x0000)
-        self.setFlag(FLAGS6502.N, self.temp & 0x0080)
+        self.setFlag(FLAGS6502_C, self.x >= self.fetched)
+        self.setFlag(FLAGS6502_Z, (self.temp & 0x00FF) == 0x0000)
+        self.setFlag(FLAGS6502_N, self.temp & 0x0080)
         return 0
 
 
@@ -804,9 +814,9 @@ cdef class Py6502:
     def CPY(self) -> uint8_t:
         self.fetch()
         self.temp = self.y - self.fetched
-        self.setFlag(FLAGS6502.C, self.y >= self.fetched)
-        self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x0000)
-        self.setFlag(FLAGS6502.N, self.temp & 0x0080)
+        self.setFlag(FLAGS6502_C, self.y >= self.fetched)
+        self.setFlag(FLAGS6502_Z, (self.temp & 0x00FF) == 0x0000)
+        self.setFlag(FLAGS6502_N, self.temp & 0x0080)
         return 0
 
 
@@ -817,8 +827,8 @@ cdef class Py6502:
         self.fetch()
         self.temp = self.fetched - 1
         self.write(self.addr_abs, self.temp & 0x00FF)
-        self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x0000)
-        self.setFlag(FLAGS6502.N, self.temp & 0x0080)
+        self.setFlag(FLAGS6502_Z, (self.temp & 0x00FF) == 0x0000)
+        self.setFlag(FLAGS6502_N, self.temp & 0x0080)
         return 0
 
 
@@ -827,8 +837,8 @@ cdef class Py6502:
     # Flags Out:   N, Z
     def DEX(self) -> uint8_t:
         self.x-=1
-        self.setFlag(FLAGS6502.Z, self.x == 0x00)
-        self.setFlag(FLAGS6502.N, self.x & 0x80)
+        self.setFlag(FLAGS6502_Z, self.x == 0x00)
+        self.setFlag(FLAGS6502_N, self.x & 0x80)
         return 0
 
 
@@ -837,8 +847,8 @@ cdef class Py6502:
     # Flags Out:   N, Z
     def DEY(self) -> uint8_t:
         self.y-=1
-        self.setFlag(FLAGS6502.Z, self.y == 0x00)
-        self.setFlag(FLAGS6502.N, self.y & 0x80)
+        self.setFlag(FLAGS6502_Z, self.y == 0x00)
+        self.setFlag(FLAGS6502_N, self.y & 0x80)
         return 0
 
 
@@ -848,8 +858,8 @@ cdef class Py6502:
     def EOR(self) -> uint8_t:
         self.fetch()
         self.a = self.a ^ self.fetched
-        self.setFlag(FLAGS6502.Z, self.a == 0x00)
-        self.setFlag(FLAGS6502.N, self.a & 0x80)
+        self.setFlag(FLAGS6502_Z, self.a == 0x00)
+        self.setFlag(FLAGS6502_N, self.a & 0x80)
         return 1
 
 
@@ -860,8 +870,8 @@ cdef class Py6502:
         self.fetch()
         self.temp = self.fetched + 1
         self.write(self.addr_abs, self.temp & 0x00FF)
-        self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x0000)
-        self.setFlag(FLAGS6502.N, self.temp & 0x0080)
+        self.setFlag(FLAGS6502_Z, (self.temp & 0x00FF) == 0x0000)
+        self.setFlag(FLAGS6502_N, self.temp & 0x0080)
         return 0
 
 
@@ -870,8 +880,8 @@ cdef class Py6502:
     # Flags Out:   N, Z
     def INX(self) -> uint8_t:
         self.x+=1
-        self.setFlag(FLAGS6502.Z, self.x == 0x00)
-        self.setFlag(FLAGS6502.N, self.x & 0x80)
+        self.setFlag(FLAGS6502_Z, self.x == 0x00)
+        self.setFlag(FLAGS6502_N, self.x & 0x80)
         return 0
 
 
@@ -880,8 +890,8 @@ cdef class Py6502:
     # Flags Out:   N, Z
     def INY(self) -> uint8_t:
         self.y+=1
-        self.setFlag(FLAGS6502.Z, self.y == 0x00)
-        self.setFlag(FLAGS6502.N, self.y & 0x80)
+        self.setFlag(FLAGS6502_Z, self.y == 0x00)
+        self.setFlag(FLAGS6502_N, self.y & 0x80)
         return 0
 
 
@@ -912,8 +922,8 @@ cdef class Py6502:
     def LDA(self) -> uint8_t:
         self.fetch()
         self.a = self.fetched
-        self.setFlag(FLAGS6502.Z, self.a == 0x00)
-        self.setFlag(FLAGS6502.N, self.a & 0x80)
+        self.setFlag(FLAGS6502_Z, self.a == 0x00)
+        self.setFlag(FLAGS6502_N, self.a & 0x80)
         return 1
 
 
@@ -923,8 +933,8 @@ cdef class Py6502:
     def LDX(self) -> uint8_t:
         self.fetch()
         self.x = self.fetched
-        self.setFlag(FLAGS6502.Z, self.x == 0x00)
-        self.setFlag(FLAGS6502.N, self.x & 0x80)
+        self.setFlag(FLAGS6502_Z, self.x == 0x00)
+        self.setFlag(FLAGS6502_N, self.x & 0x80)
 
         return 1
 
@@ -935,16 +945,16 @@ cdef class Py6502:
     def LDY(self) -> uint8_t:
         self.fetch()
         self.y = self.fetched
-        self.setFlag(FLAGS6502.Z, self.y == 0x00)
-        self.setFlag(FLAGS6502.N, self.y & 0x80)
+        self.setFlag(FLAGS6502_Z, self.y == 0x00)
+        self.setFlag(FLAGS6502_N, self.y & 0x80)
         return 1
 
     def LSR(self) -> uint8_t:
         self.fetch()
-        self.setFlag(FLAGS6502.C, self.fetched & 0x0001)
+        self.setFlag(FLAGS6502_C, self.fetched & 0x0001)
         self.temp = self.fetched >> 1
-        self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x0000)
-        self.setFlag(FLAGS6502.N, self.temp & 0x0080)
+        self.setFlag(FLAGS6502_Z, (self.temp & 0x00FF) == 0x0000)
+        self.setFlag(FLAGS6502_N, self.temp & 0x0080)
         if (lookup[self.opcode].addrmode == self.IMP):
             self.a = uint8_t(self.temp & 0x00FF)
         else:
@@ -968,8 +978,8 @@ cdef class Py6502:
     def ORA(self) -> uint8_t:
         self.fetch()
         self.a = self.a | self.fetched
-        self.setFlag(FLAGS6502.Z, self.a == 0x00)
-        self.setFlag(FLAGS6502.N, self.a & 0x80)
+        self.setFlag(FLAGS6502_Z, self.a == 0x00)
+        self.setFlag(FLAGS6502_N, self.a & 0x80)
         return 1
 
 
@@ -985,9 +995,9 @@ cdef class Py6502:
     # Function:    status -> stack
     # Note:        Break flag is set to 1 before push
     def PHP(self) -> uint8_t:
-        self.write(0x0100 + self.stkp, self.status | FLAGS6502.B | FLAGS6502.U)
-        self.setFlag(FLAGS6502.B, False)
-        self.setFlag(FLAGS6502.U, False)
+        self.write(0x0100 + self.stkp, self.status | FLAGS6502_B | FLAGS6502_U)
+        self.setFlag(FLAGS6502_B, False)
+        self.setFlag(FLAGS6502_U, False)
         self.stkp-=1
         return 0
 
@@ -998,8 +1008,8 @@ cdef class Py6502:
     def PLA(self) -> uint8_t:
         self.stkp+=1
         self.a = self.read(0x0100 + self.stkp)
-        self.setFlag(FLAGS6502.Z, self.a == 0x00)
-        self.setFlag(FLAGS6502.N, self.a & 0x80)
+        self.setFlag(FLAGS6502_Z, self.a == 0x00)
+        self.setFlag(FLAGS6502_N, self.a & 0x80)
         return 0
 
 
@@ -1008,15 +1018,15 @@ cdef class Py6502:
     def PLP(self) -> uint8_t:
         self.stkp+=1
         self.status = self.read(0x0100 + self.stkp)
-        self.setFlag(FLAGS6502.U, True)
+        self.setFlag(FLAGS6502_U, True)
         return 0
 
     def ROL(self) -> uint8_t:
         self.fetch()
-        self.temp = (self.fetched << 1) | self.getFlag(FLAGS6502.C)
-        self.setFlag(FLAGS6502.C, self.temp & 0xFF00)
-        self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x0000)
-        self.setFlag(FLAGS6502.N, self.temp & 0x0080)
+        self.temp = (self.fetched << 1) | self.getFlag(FLAGS6502_C)
+        self.setFlag(FLAGS6502_C, self.temp & 0xFF00)
+        self.setFlag(FLAGS6502_Z, (self.temp & 0x00FF) == 0x0000)
+        self.setFlag(FLAGS6502_N, self.temp & 0x0080)
         if (lookup[self.opcode].addrmode == self.IMP):
             self.a = self.temp & 0x00FF
         else:
@@ -1025,10 +1035,10 @@ cdef class Py6502:
 
     def ROR(self) -> uint8_t:
         self.fetch()
-        self.temp = (self.getFlag(FLAGS6502.C) << 7) | (self.fetched >> 1)
-        self.setFlag(FLAGS6502.C, self.fetched & 0x01)
-        self.setFlag(FLAGS6502.Z, (self.temp & 0x00FF) == 0x00)
-        self.setFlag(FLAGS6502.N, self.temp & 0x0080)
+        self.temp = (self.getFlag(FLAGS6502_C) << 7) | (self.fetched >> 1)
+        self.setFlag(FLAGS6502_C, self.fetched & 0x01)
+        self.setFlag(FLAGS6502_Z, (self.temp & 0x00FF) == 0x00)
+        self.setFlag(FLAGS6502_N, self.temp & 0x0080)
         if (lookup[self.opcode].addrmode == self.IMP):
             self.a = self.temp & 0x00FF
         else:
@@ -1038,8 +1048,8 @@ cdef class Py6502:
     def RTI(self) -> uint8_t:
         self.stkp+=1
         self.status = self.read(0x0100 + self.stkp)
-        self.status &= ~FLAGS6502.B
-        self.status &= ~FLAGS6502.U
+        self.status &= ~FLAGS6502_B
+        self.status &= ~FLAGS6502_U
 
         self.stkp+=1
         self.pc = self.read(0x0100 + self.stkp)
@@ -1062,21 +1072,21 @@ cdef class Py6502:
     # Instruction: Set Carry Flag
     # Function:    C = 1
     def SEC(self) -> uint8_t:
-        self.setFlag(FLAGS6502.C, True)
+        self.setFlag(FLAGS6502_C, True)
         return 0
 
 
     # Instruction: Set Decimal Flag
     # Function:    D = 1
     def SED(self) -> uint8_t:
-        self.setFlag(FLAGS6502.D, True)
+        self.setFlag(FLAGS6502_D, True)
         return 0
 
 
     # Instruction: Set Interrupt Flag / Enable Interrupts
     # Function:    I = 1
     def SEI(self) -> uint8_t:
-        self.setFlag(FLAGS6502.I, True)
+        self.setFlag(FLAGS6502_I, True)
         return 0
 
 
@@ -1106,8 +1116,8 @@ cdef class Py6502:
     # Flags Out:   N, Z
     def TAX(self) -> uint8_t:
         self.x = self.a
-        self.setFlag(FLAGS6502.Z, self.x == 0x00)
-        self.setFlag(FLAGS6502.N, self.x & 0x80)
+        self.setFlag(FLAGS6502_Z, self.x == 0x00)
+        self.setFlag(FLAGS6502_N, self.x & 0x80)
         return 0
 
 
@@ -1116,8 +1126,8 @@ cdef class Py6502:
     # Flags Out:   N, Z
     def TAY(self) -> uint8_t:
         self.y = self.a
-        self.setFlag(FLAGS6502.Z, self.y == 0x00)
-        self.setFlag(FLAGS6502.N, self.y & 0x80)
+        self.setFlag(FLAGS6502_Z, self.y == 0x00)
+        self.setFlag(FLAGS6502_N, self.y & 0x80)
         return 0
 
 
@@ -1126,8 +1136,8 @@ cdef class Py6502:
     # Flags Out:   N, Z
     def TSX(self) -> uint8_t:
         self.x = self.stkp
-        self.setFlag(FLAGS6502.Z, self.x == 0x00)
-        self.setFlag(FLAGS6502.N, self.x & 0x80)
+        self.setFlag(FLAGS6502_Z, self.x == 0x00)
+        self.setFlag(FLAGS6502_N, self.x & 0x80)
         return 0
 
 
@@ -1136,8 +1146,8 @@ cdef class Py6502:
     # Flags Out:   N, Z
     def TXA(self) -> uint8_t:
         self.a = self.x
-        self.setFlag(FLAGS6502.Z, self.a == 0x00)
-        self.setFlag(FLAGS6502.N, self.a & 0x80)
+        self.setFlag(FLAGS6502_Z, self.a == 0x00)
+        self.setFlag(FLAGS6502_N, self.a & 0x80)
         return 0
 
 
@@ -1153,8 +1163,8 @@ cdef class Py6502:
     # Flags Out:   N, Z
     def TYA(self) -> uint8_t:
         self.a = self.y
-        self.setFlag(FLAGS6502.Z, self.a == 0x00)
-        self.setFlag(FLAGS6502.N, self.a & 0x80)
+        self.setFlag(FLAGS6502_Z, self.a == 0x00)
+        self.setFlag(FLAGS6502_N, self.a & 0x80)
         return 0
 
 

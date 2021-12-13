@@ -27,7 +27,8 @@
 
 import time
 import olc
-from pyOlcNES import Bus, Cartridge, FLAGS6502, emulate_frame
+from pyOlcNES import Bus, Cartridge, emulate_frame
+from Py6502 import *
 from itertools import dropwhile
 
 class Demo_olc6502(olc.PixelGameEngine):
@@ -58,14 +59,14 @@ class Demo_olc6502(olc.PixelGameEngine):
     def DrawCpu(self, x, y):
         status = "STATUS: "
         self.DrawString(x , y , "STATUS:", olc.Pixel.WHITE)
-        self.DrawString(x  + 64, y, "N", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502.N else olc.Pixel.RED)
-        self.DrawString(x  + 80, y , "V", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502.V else olc.Pixel.RED)
-        self.DrawString(x  + 96, y , "-", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502.U else olc.Pixel.RED)
-        self.DrawString(x  + 112, y , "B", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502.B else olc.Pixel.RED)
-        self.DrawString(x  + 128, y , "D", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502.D else olc.Pixel.RED)
-        self.DrawString(x  + 144, y , "I", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502.I else olc.Pixel.RED)
-        self.DrawString(x  + 160, y , "Z", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502.Z else olc.Pixel.RED)
-        self.DrawString(x  + 178, y , "C", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502.C else olc.Pixel.RED)
+        self.DrawString(x  + 64, y, "N", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502_N else olc.Pixel.RED)
+        self.DrawString(x  + 80, y , "V", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502_V else olc.Pixel.RED)
+        self.DrawString(x  + 96, y , "-", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502_U else olc.Pixel.RED)
+        self.DrawString(x  + 112, y , "B", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502_B else olc.Pixel.RED)
+        self.DrawString(x  + 128, y , "D", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502_D else olc.Pixel.RED)
+        self.DrawString(x  + 144, y , "I", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502_I else olc.Pixel.RED)
+        self.DrawString(x  + 160, y , "Z", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502_Z else olc.Pixel.RED)
+        self.DrawString(x  + 178, y , "C", olc.Pixel.GREEN if self.nes.cpu.status & FLAGS6502_C else olc.Pixel.RED)
         self.DrawString(x , y + 10, "PC: $" + hex(self.nes.cpu.pc))
         self.DrawString(x , y + 20, "A: $" +  hex(self.nes.cpu.a) + "  [" + str(self.nes.cpu.a) + "]")
         self.DrawString(x , y + 30, "X: $" +  hex(self.nes.cpu.x) + "  [" + str(self.nes.cpu.x) + "]")

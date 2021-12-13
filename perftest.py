@@ -1,4 +1,4 @@
-from pyOlcNES import Bus, Cartridge, FLAGS6502, emulate_frame
+from pyOlcNES import Bus, Cartridge, emulate_frame
 
 import time
 
