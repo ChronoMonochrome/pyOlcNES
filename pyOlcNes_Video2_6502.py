@@ -97,7 +97,8 @@ class Demo_olc6502(olc.PixelGameEngine):
                 if line:
                     self.DrawString(x, nLineY, line)
 
-        it_a = (_ for _ in dropwhile(lambda addr: addr != self.nes.cpu.pc, self.mapAsm.__reversed__()))
+        reversed_dict = dict(zip(list(self.mapAsm.keys())[::-1], list(self.mapAsm.values())[::-1]))
+        it_a = (_ for _ in dropwhile(lambda addr: addr != self.nes.cpu.pc, reversed_dict))
         nLineY = (nLines >> 1) * 10 + y
         line = ""
         try:
