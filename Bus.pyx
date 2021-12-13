@@ -1,5 +1,6 @@
 # distutils: language = c++
 # cython: language_level=3
+# cython: profile=True
 
 from typing import *
 from pyOlcNES import Py6502, Py2C02, Cartridge
